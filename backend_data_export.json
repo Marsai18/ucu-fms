@@ -1,0 +1,80 @@
+﻿{
+    "drivers":  [
+                    {
+                        "id":  "1",
+                        "name":  "Masai",
+                        "licenseNumber":  "DL-001",
+                        "phone":  "+256 700 000 001",
+                        "email":  "masai@ucu.ac.ug",
+                        "status":  "Active",
+                        "createdAt":  "2025-11-16T18:45:04.102Z"
+                    },
+                    {
+                        "id":  "2",
+                        "name":  "Patrick",
+                        "licenseNumber":  "DL-002",
+                        "phone":  "+256 700 000 002",
+                        "email":  "patrick@ucu.ac.ug",
+                        "status":  "Active",
+                        "createdAt":  "2025-11-16T18:45:04.102Z"
+                    },
+                    {
+                        "id":  "3",
+                        "name":  "Kasimu",
+                        "licenseNumber":  "DL-003",
+                        "phone":  "+256 700 000 003",
+                        "email":  "kasimu@ucu.ac.ug",
+                        "status":  "Active",
+                        "createdAt":  "2025-11-16T18:45:04.102Z"
+                    }
+                ],
+    "vehicles":  null,
+    "dashboardStats":  {
+                           "vehicleStats":  {
+                                                "total":  0,
+                                                "active":  0,
+                                                "maintenance":  0,
+                                                "inactive":  0
+                                            },
+                           "driverStats":  {
+                                               "total":  3,
+                                               "active":  3
+                                           },
+                           "mileageData":  [
+
+                                           ],
+                           "fuelData":  [
+
+                                        ],
+                           "maintenanceData":  [
+
+                                               ],
+                           "activityLogs":  [
+
+                                            ],
+                           "vehicleStatus":  [
+
+                                             ],
+                           "notifications":  [
+
+                                             ],
+                           "pendingBookings":  1
+                       },
+    "routes":  null,
+    "incidents":  null,
+    "fuelLogs":  null,
+    "bookings":  {
+                     "id":  "BK001",
+                     "request_id":  "BK001",
+                     "vehicle":  "Toyota Hilux (UBL 123A)",
+                     "driver":  "Masai",
+                     "destination":  "Kampala City",
+                     "startDate":  "2024-11-15 08:00",
+                     "endDate":  "2024-11-15 17:00",
+                     "purpose":  "Official visit",
+                     "status":  "Pending",
+                     "createdAt":  "2025-11-16T18:45:04.102Z"
+                 },
+    "maintenance":  null,
+    "trips":  null
+}
