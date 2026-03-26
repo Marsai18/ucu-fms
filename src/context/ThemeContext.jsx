@@ -22,11 +22,13 @@ export const ThemeProvider = ({ children }) => {
   })
 
   useEffect(() => {
-    // Update document class and localStorage
+    // Update data-theme for CSS variables + Tailwind dark mode
     if (isDarkMode) {
+      document.documentElement.setAttribute('data-theme', 'dark')
       document.documentElement.classList.add('dark')
       localStorage.setItem('theme', 'dark')
     } else {
+      document.documentElement.removeAttribute('data-theme')
       document.documentElement.classList.remove('dark')
       localStorage.setItem('theme', 'light')
     }

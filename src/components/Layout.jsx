@@ -1,39 +1,53 @@
-import React from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { 
-  Car, 
-  Calendar, 
-  User, 
-  Wrench, 
+import {
+  Car,
+  Calendar,
+  User,
+  Wrench,
   LayoutDashboard,
   UserCircle,
   Users,
   Fuel,
-  Route,
   AlertTriangle,
   Shield,
   Navigation,
   Activity,
   LogOut,
   Sun,
-  Moon
+  Moon,
+  Bell,
+  ChevronLeft,
+  ChevronRight,
+  BarChart3,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
+import { useNotifications } from '../context/NotificationContext'
+import NotificationItem from './NotificationItem'
+import { prefetchRoute } from '../utils/prefetch'
 
 const Layout = ({ children }) => {
   const location = useLocation()
   const { logout } = useAuth()
   const { isDarkMode, toggleTheme } = useTheme()
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+
+  useEffect(() => {
+    const close = (e) => { if (!e.target.closest('#admin-notif')) setNotifOpen(false) }
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [])
 
   const menuItems = [
     { path: '/admin', label: 'Admin Dashboard', icon: LayoutDashboard, section: 'Main' },
-    { path: '/dashboard', label: 'Dashboard & Reports', icon: LayoutDashboard, section: 'Main' },
+    { path: '/dashboard', label: 'Dashboard & Reports', icon: BarChart3, section: 'Main' },
     { path: '/vehicles', label: 'Vehicle Management', icon: Car, section: 'Fleet' },
     { path: '/drivers', label: 'Driver Management', icon: Users, section: 'Fleet' },
     { path: '/booking', label: 'Booking Requests', icon: Calendar, section: 'Operations' },
     { path: '/trips', label: 'Trip Management', icon: User, section: 'Operations' },
-    { path: '/routes', label: 'Route Planning', icon: Route, section: 'Operations' },
     { path: '/maintenance', label: 'Maintenance Tracking', icon: Wrench, section: 'Operations' },
     { path: '/fuel', label: 'Fuel Management', icon: Fuel, section: 'Operations' },
     { path: '/gps', label: 'GPS Tracking', icon: Navigation, section: 'Monitoring' },
@@ -42,32 +56,45 @@ const Layout = ({ children }) => {
     { path: '/compliance', label: 'Compliance & Safety', icon: Shield, section: 'Safety' },
   ]
 
-  const menuSections = [
+  const menuSections = useMemo(() => [
     { name: 'Main', items: menuItems.filter(item => item.section === 'Main') },
     { name: 'Fleet', items: menuItems.filter(item => item.section === 'Fleet') },
     { name: 'Operations', items: menuItems.filter(item => item.section === 'Operations') },
     { name: 'Monitoring', items: menuItems.filter(item => item.section === 'Monitoring') },
     { name: 'Safety', items: menuItems.filter(item => item.section === 'Safety') },
-  ]
+  ], [])
 
-  const isActive = (path) => {
-    return location.pathname === path
-  }
+  const isActive = (path) => location.pathname === path
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
-      {/* Sidebar */}
-      <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-y-auto shadow-lg">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-ucu-gradient">
-          <h2 className="text-lg font-bold text-white">Fleet Management</h2>
-          <p className="text-xs text-ucu-gold-200 mt-1 font-medium">UCU System</p>
+    <div className="flex h-screen bg-[var(--bg-base)] transition-colors duration-150">
+      {/* Sidebar - collapsible */}
+      <aside
+        className={`${sidebarCollapsed ? 'w-[72px]' : 'w-64'} flex flex-col overflow-y-auto custom-scroll bg-[var(--bg-surface)] dark:bg-slate-800/95 border-r border-[var(--border-default)] transition-all duration-150 ease-out shrink-0`}
+      >
+        <div className="p-4 border-b border-[var(--border-default)] bg-gradient-to-br from-[#2563EB] to-[#1d4ed8] relative overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_100%_0%,rgba(255,255,255,0.15)_0%,transparent_50%)]" />
+          <div className="relative flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+              <Car size={20} className="text-white" />
+            </div>
+            {!sidebarCollapsed && (
+              <div className="min-w-0">
+                <h2 className="text-lg font-display font-bold text-white tracking-tight truncate">Fleet Management</h2>
+                <p className="text-xs text-white/80 font-medium">UCU System</p>
+              </div>
+            )}
+          </div>
         </div>
-        <nav className="flex-1 p-4">
+
+        <nav className="flex-1 p-3">
           {menuSections.map((section) => (
-            <div key={section.name} className="mb-6">
-              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2 px-2">
-                {section.name}
-              </h3>
+            <div key={section.name} className="mb-5">
+              {!sidebarCollapsed && (
+                <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 px-3">
+                  {section.name}
+                </h3>
+              )}
               {section.items.map((item) => {
                 const Icon = item.icon
                 const active = isActive(item.path)
@@ -75,87 +102,136 @@ const Layout = ({ children }) => {
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`flex items-center gap-3 px-4 py-2.5 mb-1 rounded-lg transition-all duration-200 text-sm ${
+                    onMouseEnter={() => prefetchRoute(item.path)}
+                    title={sidebarCollapsed ? item.label : undefined}
+                    className={`flex items-center gap-3 px-3 py-2.5 mb-1 rounded-xl transition-all duration-200 text-sm font-medium ${
+                      sidebarCollapsed ? 'justify-center' : ''
+                    } ${
                       active
-                        ? 'bg-ucu-blue-500 text-white shadow-md transform scale-105'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-ucu-blue-50 dark:hover:bg-gray-700 hover:text-ucu-blue-600 dark:hover:text-ucu-blue-400'
+                        ? 'bg-[var(--color-primary)] text-white shadow-md'
+                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/80 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
-                    <Icon size={18} />
-                    <span className="font-medium">{item.label}</span>
+                    <Icon size={20} strokeWidth={2} className="shrink-0" />
+                    {!sidebarCollapsed && <span>{item.label}</span>}
                   </Link>
                 )
               })}
             </div>
           ))}
         </nav>
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+
+        <div className="p-3 border-t border-[var(--border-default)] space-y-2">
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="w-full flex items-center justify-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/80 transition-all text-sm font-medium"
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {sidebarCollapsed ? <ChevronRight size={20} /> : <><ChevronLeft size={20} /><span>Collapse</span></>}
+          </button>
           <button
             onClick={toggleTheme}
-            className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm font-medium border border-gray-200 dark:border-gray-700"
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3 px-3'} py-2.5 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400 transition-all text-sm font-medium border border-transparent hover:border-amber-200 dark:hover:border-amber-500/30`}
           >
-            {isDarkMode ? (
-              <>
-                <Sun size={18} />
-                <span>Light Mode</span>
-              </>
-            ) : (
-              <>
-                <Moon size={18} />
-                <span>Dark Mode</span>
-              </>
-            )}
+            {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+            {!sidebarCollapsed && <span>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>}
           </button>
           <button
             onClick={logout}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-sm font-medium"
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3 px-3'} py-2.5 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all text-sm font-medium`}
           >
-            <LogOut size={18} />
-            <span>Logout</span>
+            <LogOut size={20} />
+            {!sidebarCollapsed && <span>Logout</span>}
           </button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900">
-        {/* Header */}
-        <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-between items-center shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-ucu-gradient flex items-center justify-center">
-              <span className="text-white font-bold text-lg">UCU</span>
+      <div className="flex-1 flex flex-col overflow-hidden bg-[var(--bg-base)] relative">
+        <div className="absolute inset-0 bg-mesh-gradient dark:bg-mesh-dark pointer-events-none opacity-80" />
+        {/* Top Header / Notification Bar */}
+        <header className="relative bg-[var(--bg-surface)] dark:bg-slate-800/90 backdrop-blur-xl border-b border-[var(--border-default)] px-6 py-4 flex justify-between items-center shadow-sm z-10">
+          <div className="flex items-center gap-4">
+            <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-[#2563EB] to-[#1d4ed8] flex items-center justify-center shadow-lg ring-2 ring-white/20 dark:ring-slate-600/40">
+              <span className="text-white font-display font-bold text-lg">UCU</span>
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-800 dark:text-white">Fleet Management System</h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Uganda Christian University</p>
+              <h1 className="text-lg font-display font-bold text-[var(--text-primary)] tracking-tight">Fleet Management System</h1>
+              <p className="text-xs text-[var(--text-muted)] font-medium">Uganda Christian University</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div id="admin-notif" className="relative">
+              <button
+                onClick={() => setNotifOpen(!notifOpen)}
+                className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/80 text-slate-600 dark:text-slate-300 relative transition-colors duration-200"
+              >
+                <Bell size={22} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 h-5 w-5 rounded-full bg-rose-500 text-white text-xs font-bold flex items-center justify-center animate-pulse">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+              {notifOpen && (
+                <div className="absolute right-0 mt-2 w-96 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 z-50 max-h-[28rem] overflow-y-auto custom-scroll animate-fade-in">
+                  <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center sticky top-0 bg-white dark:bg-slate-800">
+                    <span className="font-semibold text-slate-900 dark:text-white">Notifications</span>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); markAllAsRead(); setNotifOpen(false); }}
+                        className="text-xs text-[var(--color-primary)] hover:underline font-medium"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+                  <div className="divide-y divide-slate-100 dark:divide-slate-700">
+                    {notifications.slice(0, 15).map((n) => (
+                      <NotificationItem
+                        key={n.id}
+                        notification={n}
+                        onMarkRead={markAsRead}
+                        onClose={() => setNotifOpen(false)}
+                        role="admin"
+                        variant="dropdown"
+                      />
+                    ))}
+                    {notifications.length === 0 && (
+                      <div className="p-8 text-center">
+                        <Bell size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+                        <p className="text-sm text-slate-500 dark:text-slate-400">No notifications yet</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
-              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/80 text-slate-600 dark:text-slate-300 transition-all duration-200 hover:scale-105"
+              title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
               {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
-            <div className="h-10 w-10 rounded-full bg-ucu-blue-500 flex items-center justify-center cursor-pointer hover:bg-ucu-blue-600 transition-colors">
-              <UserCircle size={24} className="text-white" />
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#2563EB] to-[#1d4ed8] flex items-center justify-center cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105">
+              <UserCircle size={22} className="text-white" />
             </div>
           </div>
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
-          <div className="p-6">
+        <main className="flex-1 overflow-y-auto custom-scroll relative">
+          <div className="p-6 lg:p-8">
             {children}
           </div>
-          {/* Footer */}
-          <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-between items-center mt-6">
-            <p className="text-xs text-gray-500 dark:text-gray-400">
+          <footer className="relative bg-[var(--bg-surface)] dark:bg-slate-800/60 backdrop-blur-sm border-t border-[var(--border-default)] px-6 py-4 flex justify-between items-center mt-6">
+            <p className="text-xs text-[var(--text-muted)] font-medium">
               © 2025 UCU Fleet Management System. All rights reserved.
             </p>
             <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-ucu-blue-500"></div>
-              <div className="h-2 w-2 rounded-full bg-ucu-gold-500"></div>
+              <div className="h-2.5 w-2.5 rounded-full bg-[var(--color-primary)]"></div>
+              <div className="h-2.5 w-2.5 rounded-full bg-[var(--color-secondary)]"></div>
             </div>
           </footer>
         </main>
@@ -165,4 +241,3 @@ const Layout = ({ children }) => {
 }
 
 export default Layout
-

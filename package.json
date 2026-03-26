@@ -25,9 +25,11 @@
     "vite": "^5.0.8"
   },
   "scripts": {
+    "start": "vite",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "backend": "cd fleet_backend && npm start",
     "deploy": "vercel --prod",
     "deploy:preview": "vercel"
   }

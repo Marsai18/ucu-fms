@@ -14,6 +14,10 @@ const defaultForm = {
   fuelCapacity: '',
   currentOdometer: '',
   operationalStatus: 'Active',
+  seats: '',
+  vehicleType: '',
+  routeType: '',
+  fuelEfficiency: '',
   lastServiceDate: '',
   nextServiceDueDate: ''
 }
@@ -51,6 +55,19 @@ const VehicleRegistration = () => {
       toast.error('Plate number, make, and model are required')
       return
     }
+    const odometer = Number(formData.currentOdometer) || 0
+    if (odometer < 0) {
+      toast.error('Current odometer cannot be negative')
+      return
+    }
+    if (formData.lastServiceDate && formData.nextServiceDueDate) {
+      const lastService = new Date(formData.lastServiceDate)
+      const nextDue = new Date(formData.nextServiceDueDate)
+      if (nextDue < lastService) {
+        toast.error('Next service due date cannot be before last service date')
+        return
+      }
+    }
     try {
       setSubmitting(true)
       const payload = {
@@ -64,6 +81,10 @@ const VehicleRegistration = () => {
         fuelCapacity: Number(formData.fuelCapacity) || null,
         currentOdometer: Number(formData.currentOdometer) || 0,
         operationalStatus: formData.operationalStatus,
+        seats: Number(formData.seats) || null,
+        vehicleType: formData.vehicleType || null,
+        routeType: formData.routeType || null,
+        fuelEfficiency: Number(formData.fuelEfficiency) || null,
         lastServiceDate: formData.lastServiceDate || null,
         nextServiceDueDate: formData.nextServiceDueDate || null
       }
@@ -78,7 +99,6 @@ const VehicleRegistration = () => {
     }
   }
 
-  const latestVehicles = useMemo(() => vehicles.slice(0, 5), [vehicles])
 
   const formatDate = (date) => {
     if (!date) return 'N/A'
@@ -88,15 +108,16 @@ const VehicleRegistration = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-semibold text-gray-900">Vehicle Registration</h1>
-        <p className="text-gray-500 mt-1">Enter comprehensive details for new vehicles to be added to the fleet.</p>
+        <p className="text-xs font-bold text-ucu-blue-600 dark:text-ucu-blue-400 uppercase tracking-widest">Fleet</p>
+        <h1 className="text-3xl md:text-4xl font-display font-bold text-slate-900 dark:text-white mt-1 tracking-tight">Vehicle Registration</h1>
+        <p className="text-slate-500 dark:text-slate-400 mt-2">Enter comprehensive details for new vehicles to be added to the fleet.</p>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-6">
         {/* Registration Form */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-ucu p-6 card-glow">
           <form className="space-y-6" onSubmit={handleSubmit}>
             <section>
               <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -110,7 +131,7 @@ const VehicleRegistration = () => {
                     name="plateNumber"
                     value={formData.plateNumber}
                     onChange={handleChange}
-                    placeholder="e.g., UCU 123A"
+                    placeholder="e.g., UA 075 AK"
                     className="w-full rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-primary-100 uppercase"
                   />
                 </div>
@@ -192,6 +213,61 @@ const VehicleRegistration = () => {
                   </select>
                 </div>
                 <div>
+                  <label className="text-sm font-medium text-gray-700">Seats (capacity)</label>
+                  <input
+                    type="number"
+                    name="seats"
+                    value={formData.seats}
+                    onChange={handleChange}
+                    placeholder="e.g., 5"
+                    min="1"
+                    className="w-full rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-primary-100"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Vehicle Type</label>
+                  <select
+                    name="vehicleType"
+                    value={formData.vehicleType}
+                    onChange={handleChange}
+                    className="w-full rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-primary-100"
+                  >
+                    <option value="">Any</option>
+                    <option value="Sedan">Sedan</option>
+                    <option value="SUV">SUV</option>
+                    <option value="Pickup">Pickup</option>
+                    <option value="Minibus">Minibus</option>
+                    <option value="Bus">Bus</option>
+                    <option value="Van">Van</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Route Type (journey)</label>
+                  <select
+                    name="routeType"
+                    value={formData.routeType}
+                    onChange={handleChange}
+                    className="w-full rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-primary-100"
+                  >
+                    <option value="">Any</option>
+                    <option value="Short">Short</option>
+                    <option value="Long">Long</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Fuel Efficiency (km/L)</label>
+                  <input
+                    type="number"
+                    name="fuelEfficiency"
+                    value={formData.fuelEfficiency}
+                    onChange={handleChange}
+                    placeholder="e.g., 9"
+                    step="0.1"
+                    min="0"
+                    className="w-full rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-primary-100"
+                  />
+                </div>
+                <div>
                   <label className="text-sm font-medium text-gray-700">Fuel Capacity (Liters)</label>
                   <input
                     type="number"
@@ -270,14 +346,14 @@ const VehicleRegistration = () => {
               <button
                 type="button"
                 onClick={() => setFormData(defaultForm)}
-                className="px-5 py-3 rounded-xl border border-gray-200 font-semibold text-gray-600 hover:bg-gray-50"
+                className="px-5 py-3 rounded-xl border-2 border-ucu-gold-300 dark:border-ucu-gold-500 font-semibold text-ucu-gold-700 dark:text-ucu-gold-400 hover:bg-ucu-gold-50 dark:hover:bg-ucu-gold-500/20 transition-all"
               >
                 Clear Form
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-6 py-3 rounded-xl bg-primary-500 text-white font-semibold hover:bg-primary-600 disabled:opacity-40"
+                className="px-6 py-3 rounded-xl bg-ucu-gradient text-white font-semibold hover:shadow-ucu disabled:opacity-40 transition-all"
               >
                 Add Vehicle
               </button>
@@ -285,36 +361,61 @@ const VehicleRegistration = () => {
           </form>
         </div>
 
-        {/* Latest Vehicles */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        {/* Vehicles Table */}
+        <div className="bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-ucu p-6 card-glow overflow-hidden">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Recent Vehicles</h2>
-            <span className="text-sm text-gray-500">{vehicles.length} total</span>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">All Vehicles</h2>
+            <span className="text-sm text-gray-500 dark:text-gray-400">{vehicles.length} total</span>
           </div>
-          <div className="space-y-4">
-            {latestVehicles.map(vehicle => (
-              <div key={vehicle.id} className="border border-gray-100 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="font-semibold text-gray-900">{vehicle.plateNumber}</p>
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                    vehicle.operationalStatus === 'Active'
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : vehicle.operationalStatus === 'On Trip'
-                      ? 'bg-sky-50 text-sky-700'
-                      : vehicle.operationalStatus === 'In Maintenance'
-                      ? 'bg-amber-50 text-amber-700'
-                      : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {vehicle.operationalStatus}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-500">{vehicle.make} {vehicle.model} • {vehicle.year}</p>
-                <p className="text-xs text-gray-400 mt-2">Last serviced: {formatDate(vehicle.lastServiceDate)}</p>
-              </div>
-            ))}
-
-            {!latestVehicles.length && !loading && (
-              <p className="text-center text-gray-500 text-sm py-6">No vehicles registered yet.</p>
+          <div className="overflow-x-auto rounded-xl border border-[var(--border-default)]">
+            <table className="table-modern">
+              <thead>
+                <tr>
+                  <th className="py-3 px-4 font-medium">Plate</th>
+                  <th className="py-3 px-4 font-medium">Make / Model</th>
+                  <th className="py-3 px-4 font-medium">Year</th>
+                  <th className="py-3 px-4 font-medium">Seats</th>
+                  <th className="py-3 px-4 font-medium">Type</th>
+                  <th className="py-3 px-4 font-medium">Route</th>
+                  <th className="py-3 px-4 font-medium">km/L</th>
+                  <th className="py-3 px-4 font-medium">Fuel</th>
+                  <th className="py-3 px-4 font-medium">Odometer</th>
+                  <th className="py-3 px-4 font-medium">Status</th>
+                  <th className="py-3 px-4 font-medium">Last Service</th>
+                </tr>
+              </thead>
+              <tbody>
+                {vehicles.map(vehicle => (
+                  <tr key={vehicle.id}>
+                    <td className="py-3 px-4 font-semibold text-gray-900 dark:text-white">{vehicle.plateNumber}</td>
+                    <td className="py-3 px-4 text-gray-600 dark:text-gray-300">{vehicle.make} {vehicle.model}</td>
+                    <td className="py-3 px-4 text-gray-600 dark:text-gray-300">{vehicle.year || '—'}</td>
+                    <td className="py-3 px-4 text-gray-600 dark:text-gray-300">{vehicle.seats ?? '—'}</td>
+                    <td className="py-3 px-4 text-gray-600 dark:text-gray-300">{vehicle.vehicleType || '—'}</td>
+                    <td className="py-3 px-4 text-gray-600 dark:text-gray-300">{vehicle.routeType || '—'}</td>
+                    <td className="py-3 px-4 text-gray-600 dark:text-gray-300">{vehicle.fuelEfficiency ?? '—'}</td>
+                    <td className="py-3 px-4 text-gray-600 dark:text-gray-300">{vehicle.fuelType || '—'}</td>
+                    <td className="py-3 px-4 text-gray-600 dark:text-gray-300">{(vehicle.currentOdometer || 0).toLocaleString()} km</td>
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        vehicle.operationalStatus === 'Active'
+                          ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400'
+                          : vehicle.operationalStatus === 'On Trip'
+                          ? 'bg-sky-100 dark:bg-sky-500/20 text-sky-700 dark:text-sky-400'
+                          : vehicle.operationalStatus === 'In Maintenance'
+                          ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400'
+                          : 'bg-gray-100 dark:bg-gray-600/30 text-gray-600 dark:text-gray-400'
+                      }`}>
+                        {vehicle.operationalStatus || '—'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-gray-600 dark:text-gray-300">{formatDate(vehicle.lastServiceDate)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!vehicles.length && !loading && (
+              <p className="text-center text-gray-500 dark:text-gray-400 text-sm py-8">No vehicles registered yet.</p>
             )}
           </div>
         </div>

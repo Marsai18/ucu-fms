@@ -36,18 +36,22 @@ export const login = async (req, res, next) => {
     } else {
       // Fallback to JSON storage
       const data = await readData();
-      user = data.users.find(u => u.username === username && u.password === password);
+      user = data.users.find(u => (u.username === username || u.email === username) && u.password === password);
 
       if (!user) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
     }
 
-    const token = generateToken({
+    const tokenPayload = {
       id: user.id,
       username: user.username,
-      role: user.role
-    });
+      role: user.role || 'client'
+    };
+    if (user.role === 'driver' && user.driverId) {
+      tokenPayload.driverId = user.driverId;
+    }
+    const token = generateToken(tokenPayload);
 
     const { password: _, ...userWithoutPassword } = user;
 
@@ -56,6 +60,32 @@ export const login = async (req, res, next) => {
       token,
       user: userWithoutPassword
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Demo token for fallback login when main API fails (e.g. CORS during dev)
+export const getDemoToken = async (req, res, next) => {
+  try {
+    const { username, password } = req.body || {};
+    const demoUsers = [
+      { username: 'masai', password: 'masai123', id: '1', role: 'admin', name: 'Masai' },
+      { username: 'client@ucu.ac.ug', password: 'client123', id: '2', role: 'client', name: 'Client User' },
+      { username: 'david.ssebunya@ucu.ac.ug', password: 'driver123', id: '3', role: 'driver', driverId: '1', name: 'David Ssebunya' },
+      { username: 'hod@ucu.ac.ug', password: 'hod123', id: '7', role: 'hod', name: 'Head of Department' },
+      { username: 'hod', password: 'hod123', id: '7', role: 'hod', name: 'Head of Department' }
+    ];
+    const match = demoUsers.find(u =>
+      (u.username === username || (u.email && u.email === username)) && u.password === password
+    );
+    if (!match) {
+      return res.status(401).json({ error: 'Invalid demo credentials' });
+    }
+    const tokenPayload = { id: match.id, username: match.username, role: match.role };
+    if (match.driverId) tokenPayload.driverId = match.driverId;
+    const token = generateToken(tokenPayload);
+    res.json({ token, user: { id: match.id, username: match.username, role: match.role, driverId: match.driverId, name: match.name } });
   } catch (error) {
     next(error);
   }

@@ -8,7 +8,7 @@ import {
   getTrainingSessions,
   createTrainingSession,
   getDriverPerformance
-} from '../controllers/driverController.js';
+} from '../controllers/driversController.js';
 import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();

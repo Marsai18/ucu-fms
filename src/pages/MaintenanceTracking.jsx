@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
-import { ClipboardList, Wrench } from 'lucide-react'
+import { ClipboardList, Wrench, AlertTriangle, Clock, CalendarCheck } from 'lucide-react'
 import api from '../utils/api'
 
 const defaultForm = {
@@ -10,13 +10,14 @@ const defaultForm = {
   description: '',
   odometerReading: '',
   cost: '',
-  mechanic: '',
+  serviceProvider: '',
   nextServiceDue: ''
 }
 
 const MaintenanceTracking = () => {
   const [records, setRecords] = useState([])
   const [vehicles, setVehicles] = useState([])
+  const [alerts, setAlerts] = useState({ overdue: [], dueSoon: [] })
   const [formData, setFormData] = useState(defaultForm)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -24,12 +25,14 @@ const MaintenanceTracking = () => {
   const loadRecords = async () => {
     try {
       setLoading(true)
-      const [recordsResponse, vehiclesResponse] = await Promise.all([
+      const [recordsResponse, vehiclesResponse, alertsResponse] = await Promise.all([
         api.getMaintenanceRecords(),
-        api.getVehicles()
+        api.getVehicles(),
+        api.getMaintenanceAlerts().catch(() => ({ overdue: [], dueSoon: [] }))
       ])
       setRecords(Array.isArray(recordsResponse) ? recordsResponse : [])
       setVehicles(Array.isArray(vehiclesResponse) ? vehiclesResponse : [])
+      setAlerts(alertsResponse || { overdue: [], dueSoon: [] })
     } catch (error) {
       toast.error(error.message || 'Failed to load maintenance data')
     } finally {
@@ -59,6 +62,19 @@ const MaintenanceTracking = () => {
       toast.error('Vehicle, service date, and service type are required')
       return
     }
+    const cost = Number(formData.cost) || 0
+    if (cost < 0) {
+      toast.error('Cost cannot be negative')
+      return
+    }
+    if (formData.nextServiceDue && formData.serviceDate) {
+      const serviceDate = new Date(formData.serviceDate)
+      const nextDue = new Date(formData.nextServiceDue)
+      if (nextDue < serviceDate) {
+        toast.error('Next service due date cannot be before the service date')
+        return
+      }
+    }
     try {
       setSubmitting(true)
       await api.createMaintenanceRecord({
@@ -68,7 +84,7 @@ const MaintenanceTracking = () => {
         description: formData.description,
         odometerReading: Number(formData.odometerReading) || null,
         cost: Number(formData.cost) || 0,
-        mechanicDetails: formData.mechanic,
+        mechanicDetails: formData.serviceProvider,
         nextServiceDueDate: formData.nextServiceDue || null
       })
       toast.success('Maintenance record added')
@@ -81,64 +97,152 @@ const MaintenanceTracking = () => {
     }
   }
 
-  const recentRecords = useMemo(() => records.slice(0, 7), [records])
+  const displayRecords = useMemo(() => records, [records])
+
+  const hasAlerts = (alerts.overdue?.length || 0) + (alerts.dueSoon?.length || 0) > 0
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold text-gray-900">Maintenance Tracking</h1>
-        <p className="text-gray-500 mt-1">Overview of all recorded vehicle maintenance activities and scheduled services.</p>
+        <h1 className="text-3xl font-semibold text-gray-900 dark:text-white">Maintenance Tracking</h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">Overview of all recorded vehicle maintenance activities and scheduled services.</p>
       </div>
+
+      {/* System alerts: overdue and due soon */}
+      {hasAlerts && (
+        <div className="space-y-4">
+          {alerts.overdue?.length > 0 && (
+            <div className="rounded-2xl border-2 border-rose-300 dark:border-rose-700 bg-rose-50 dark:bg-rose-900/20 p-5 shadow-lg">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-rose-500/20 flex items-center justify-center">
+                  <AlertTriangle size={24} className="text-rose-600 dark:text-rose-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-bold text-rose-800 dark:text-rose-400 flex items-center gap-2">
+                    Maintenance Overdue
+                  </h3>
+                  <p className="text-sm text-rose-700 dark:text-rose-300 mt-1">
+                    {alerts.overdue.length} service{alerts.overdue.length !== 1 ? 's' : ''} past due date — schedule immediately.
+                  </p>
+                  <div className="mt-4 space-y-3">
+                    {alerts.overdue.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between p-3 rounded-xl bg-white/60 dark:bg-slate-800/50 border border-rose-200 dark:border-rose-800"
+                      >
+                        <div className="flex items-center gap-3">
+                          <CalendarCheck size={18} className="text-rose-500" />
+                          <div>
+                            <p className="font-semibold text-slate-900 dark:text-white">
+                              {item.vehicle?.plateNumber || item.vehicleId} • {item.serviceType} • {item.vehicle?.make} {item.vehicle?.model}
+                            </p>
+                            <p className="text-xs text-slate-600 dark:text-slate-400">
+                              Was due {item.dueDateFormatted} • {Math.abs(item.daysUntil)} day(s) overdue
+                            </p>
+                          </div>
+                        </div>
+                        <span className="px-3 py-1 rounded-full bg-rose-500/20 text-rose-700 dark:text-rose-300 text-xs font-bold">
+                          OVERDUE
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          {alerts.dueSoon?.length > 0 && (
+            <div className="rounded-2xl border-2 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-5 shadow-lg">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                  <Clock size={24} className="text-amber-600 dark:text-amber-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-bold text-amber-800 dark:text-amber-400 flex items-center gap-2">
+                    Service Due Soon
+                  </h3>
+                  <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                    {alerts.dueSoon.length} service{alerts.dueSoon.length !== 1 ? 's' : ''} due within 7 days — plan ahead.
+                  </p>
+                  <div className="mt-4 space-y-3">
+                    {alerts.dueSoon.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between p-3 rounded-xl bg-white/60 dark:bg-slate-800/50 border border-amber-200 dark:border-amber-800"
+                      >
+                        <div className="flex items-center gap-3">
+                          <CalendarCheck size={18} className="text-amber-500" />
+                          <div>
+                            <p className="font-semibold text-slate-900 dark:text-white">
+                              {item.vehicle?.plateNumber || item.vehicleId} • {item.serviceType} • {item.vehicle?.make} {item.vehicle?.model}
+                            </p>
+                            <p className="text-xs text-slate-600 dark:text-slate-400">
+                              Due {item.dueDateFormatted} • in {item.daysUntil} day(s)
+                            </p>
+                          </div>
+                        </div>
+                        <span className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-bold">
+                          DUE SOON
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-[1.5fr_1fr] gap-6">
         {/* Maintenance Records */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-          <div className="flex items-center justify-between p-6 border-b border-gray-100">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm">
+          <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-slate-700">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 <ClipboardList size={20} className="text-primary-500" /> Maintenance Records
               </h2>
-              <p className="text-sm text-gray-500 mt-1">Detailed log of completed maintenance work.</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Detailed log of completed maintenance work.</p>
             </div>
-            <span className="text-sm text-gray-400">{records.length} records</span>
+            <span className="text-sm text-gray-400 dark:text-slate-500">{records.length} records</span>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="text-gray-500">
+                <tr className="text-gray-500 dark:text-slate-400">
                   <th className="py-3 px-6">Vehicle</th>
                   <th className="py-3 px-6">Service Date</th>
                   <th className="py-3 px-6">Service Type</th>
                   <th className="py-3 px-6">Odometer</th>
                   <th className="py-3 px-6">Cost (UGX)</th>
-                  <th className="py-3 px-6">Mechanic</th>
+                  <th className="py-3 px-6">Service Provider</th>
                 </tr>
               </thead>
               <tbody>
-                {recentRecords.map(record => (
-                  <tr key={record.id} className="border-t border-gray-50">
-                    <td className="py-4 px-6 font-semibold text-gray-900">
+                {displayRecords.map(record => (
+                  <tr key={record.id} className="border-t border-gray-50 dark:border-slate-700">
+                    <td className="py-4 px-6 font-semibold text-gray-900 dark:text-white">
                       {record.vehiclePlate || vehicles.find(v => v.id === record.vehicleId)?.plateNumber || record.vehicleId}
                     </td>
-                    <td className="py-4 px-6 text-gray-600">{formatDate(record.serviceDate)}</td>
+                    <td className="py-4 px-6 text-gray-600 dark:text-slate-400">{formatDate(record.serviceDate)}</td>
                     <td className="py-4 px-6">
                       <span className="px-3 py-1 rounded-full bg-primary-50 text-primary-700 text-xs font-semibold">
                         {record.serviceType}
                       </span>
                     </td>
                     <td className="py-4 px-6 text-gray-600">{record.odometerReading ? `${record.odometerReading.toLocaleString()} km` : 'N/A'}</td>
-                    <td className="py-4 px-6 text-gray-900 font-semibold">
+                    <td className="py-4 px-6 text-gray-900 dark:text-white font-semibold">
                       UGX {record.cost ? Number(record.cost).toLocaleString() : '0'}
                     </td>
-                    <td className="py-4 px-6 text-gray-600">{record.mechanicDetails || '—'}</td>
+                    <td className="py-4 px-6 text-gray-600 dark:text-slate-400">{record.mechanicDetails || '—'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
 
-            {!recentRecords.length && !loading && (
-              <div className="text-center text-gray-500 text-sm py-8">
+            {!displayRecords.length && !loading && (
+              <div className="text-center text-gray-500 dark:text-slate-400 text-sm py-8">
                 No maintenance records yet.
               </div>
             )}
@@ -146,8 +250,8 @@ const MaintenanceTracking = () => {
         </div>
 
         {/* Add Maintenance Record */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-1 flex items-center gap-2">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm p-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
             <Wrench size={20} className="text-primary-500" /> Add New Maintenance Record
           </h2>
           <p className="text-sm text-gray-500 mb-4">Enter details for a new service activity.</p>
@@ -237,11 +341,11 @@ const MaintenanceTracking = () => {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-700">Mechanic Details</label>
+              <label className="text-sm font-medium text-gray-700">Service Provider</label>
               <input
                 type="text"
-                name="mechanic"
-                value={formData.mechanic}
+                name="serviceProvider"
+                value={formData.serviceProvider}
                 onChange={handleChange}
                 placeholder="e.g., QuickFix Garage"
                 className="w-full rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-primary-100"
@@ -270,7 +374,7 @@ const MaintenanceTracking = () => {
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex-1 rounded-xl bg-primary-500 text-white font-semibold py-3 hover:bg-primary-600 disabled:opacity-40"
+                className="flex-1 rounded-xl bg-ucu-gradient text-white font-semibold py-3 hover:shadow-ucu disabled:opacity-40 transition-all"
               >
                 Add Maintenance Record
               </button>

@@ -17,7 +17,7 @@ const ComplianceSafety = () => {
   const complianceRecords = [
     {
       id: 1,
-      vehicle: 'UCU 101',
+      vehicle: 'UA 001 AK',
       regulationType: 'Roadworthiness Certificate',
       inspectionDate: '2024-06-15',
       expiryDate: '2025-06-15',
@@ -28,7 +28,7 @@ const ComplianceSafety = () => {
     },
     {
       id: 2,
-      vehicle: 'UCU 102',
+      vehicle: 'UA 002 AK',
       regulationType: 'Insurance',
       inspectionDate: '2024-07-01',
       expiryDate: '2025-07-01',
@@ -39,7 +39,7 @@ const ComplianceSafety = () => {
     },
     {
       id: 3,
-      vehicle: 'UCU 103',
+      vehicle: 'UA 003 AK',
       regulationType: 'Roadworthiness Certificate',
       inspectionDate: '2024-05-20',
       expiryDate: '2025-05-20',
@@ -50,7 +50,7 @@ const ComplianceSafety = () => {
     },
     {
       id: 4,
-      vehicle: 'UCU 104',
+      vehicle: 'UA 004 AK',
       regulationType: 'Driver License',
       inspectionDate: '2024-07-10',
       expiryDate: '2025-07-10',
@@ -64,7 +64,7 @@ const ComplianceSafety = () => {
   const safetyChecks = [
     {
       id: 1,
-      vehicle: 'UCU 101',
+      vehicle: 'UA 001 AK',
       checkType: 'Daily Safety Check',
       date: '2024-07-28',
       status: 'Passed',
@@ -74,7 +74,7 @@ const ComplianceSafety = () => {
     },
     {
       id: 2,
-      vehicle: 'UCU 102',
+      vehicle: 'UA 002 AK',
       checkType: 'Weekly Inspection',
       date: '2024-07-27',
       status: 'Passed',
@@ -84,7 +84,7 @@ const ComplianceSafety = () => {
     },
     {
       id: 3,
-      vehicle: 'UCU 103',
+      vehicle: 'UA 003 AK',
       checkType: 'Daily Safety Check',
       date: '2024-07-28',
       status: 'Failed',
@@ -263,10 +263,10 @@ const ComplianceSafety = () => {
                   required
                 >
                   <option value="">Select vehicle</option>
-                  <option value="UCU 101">UCU 101</option>
-                  <option value="UCU 102">UCU 102</option>
-                  <option value="UCU 103">UCU 103</option>
-                  <option value="UCU 104">UCU 104</option>
+                  <option value="UA 001 AK">UA 001 AK</option>
+                  <option value="UA 002 AK">UA 002 AK</option>
+                  <option value="UA 003 AK">UA 003 AK</option>
+                  <option value="UA 004 AK">UA 004 AK</option>
                 </select>
               </div>
               <div>

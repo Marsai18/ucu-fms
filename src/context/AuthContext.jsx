@@ -6,32 +6,37 @@ const AuthContext = createContext(null)
 export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [user, setUser] = useState(null)
+  const [isInitialized, setIsInitialized] = useState(false)
 
   useEffect(() => {
-    // Check if user is already authenticated
-    const token = api.getToken()
-    if (token) {
-      // Verify token by getting current user
-      api.request('/auth/me')
-        .then(userData => {
+    const initAuth = async () => {
+      const token = api.getToken()
+      if (token) {
+        try {
+          const userData = await api.request('/auth/me')
           setIsAuthenticated(true)
           setUser(userData)
-        })
-        .catch(() => {
-          // Token invalid, clear it
+        } catch {
           api.setToken(null)
           setIsAuthenticated(false)
           setUser(null)
-        })
-    } else {
-      // Fallback to old storage for migration
-      const stored = localStorage.getItem('ucu_fms_auth')
-      if (stored) {
-        const parsed = JSON.parse(stored)
-        setIsAuthenticated(true)
-        setUser(parsed)
+        }
+      } else {
+        const stored = localStorage.getItem('ucu_fms_auth')
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored)
+            setIsAuthenticated(true)
+            setUser(parsed)
+          } catch {
+            setIsAuthenticated(false)
+            setUser(null)
+          }
+        }
       }
+      setIsInitialized(true)
     }
+    initAuth()
   }, [])
 
   const login = async (username, password) => {
@@ -41,33 +46,39 @@ export const AuthProvider = ({ children }) => {
       if (response.token || response.user) {
         setIsAuthenticated(true)
         const userData = response.user || {
+          id: response.user?.id,
           username,
           email: username.includes('@') ? username : undefined,
-          role: response.role || (username === 'masai' ? 'admin' : 'client')
+          role: response.user?.role || response.role || (username === 'masai' ? 'admin' : 'client'),
+          driverId: response.user?.driverId,
+          name: response.user?.name
         }
         setUser(userData)
-        // Keep old storage for compatibility
         localStorage.setItem('ucu_fms_auth', JSON.stringify(userData))
         return { ok: true, user: userData }
       }
       
       return { ok: false, error: response.error || 'Invalid credentials' }
     } catch (error) {
-      // Fallback for hardcoded client credentials
-      if (username === 'client@ucu.ac.ug' && password === 'client123') {
-        const demoUser = {
-          id: '2',
-          username: 'client@ucu.ac.ug',
-          email: 'client@ucu.ac.ug',
-          role: 'client',
-          name: 'Client User'
+      // Fallback: try demo-token endpoint if main login failed (e.g. backend was starting)
+      try {
+        const demoRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/demo-token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        })
+        if (demoRes.ok) {
+          const data = await demoRes.json()
+          if (data.token && data.user) {
+            api.setToken(data.token)
+            setIsAuthenticated(true)
+            setUser(data.user)
+            localStorage.setItem('ucu_fms_auth', JSON.stringify(data.user))
+            return { ok: true, user: data.user }
+          }
         }
-        setIsAuthenticated(true)
-        setUser(demoUser)
-        localStorage.setItem('ucu_fms_auth', JSON.stringify(demoUser))
-        return { ok: true, user: demoUser }
-      }
-      return { ok: false, error: error.message || 'Login failed' }
+      } catch (_) {}
+      return { ok: false, error: error.message || 'Login failed. Make sure the backend is running on http://localhost:5000' }
     }
   }
 
@@ -78,7 +89,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null)
   }
 
-  const value = useMemo(() => ({ isAuthenticated, user, login, logout }), [isAuthenticated, user])
+  const value = useMemo(() => ({ isAuthenticated, user, login, logout, isInitialized }), [isAuthenticated, user, isInitialized])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

@@ -112,6 +112,15 @@ const db = {
     if (filters.status) {
       bookings = bookings.filter(b => b.status === filters.status);
     }
+    if (filters.userId) {
+      bookings = bookings.filter(b => String(b.userId) === String(filters.userId));
+    }
+    if (filters.forHod && !filters.status) {
+      bookings = bookings.filter(b => b.status === 'Pending');
+    }
+    if (filters.forAdmin) {
+      bookings = bookings.filter(b => b.status !== 'Pending');
+    }
     return bookings;
   },
 
@@ -189,9 +198,15 @@ const db = {
   // Fuel
   async findAllFuelLogs(filters = {}) {
     const data = await readData();
-    let logs = data.fuelLogs;
+    let logs = data.fuelLogs || [];
     if (filters.vehicleId) {
-      logs = logs.filter(l => l.vehicleId === String(filters.vehicleId));
+      logs = logs.filter(l => String(l.vehicleId) === String(filters.vehicleId));
+    }
+    if (filters.driverId) {
+      logs = logs.filter(l => l.driverId && String(l.driverId) === String(filters.driverId));
+    }
+    if (filters.tripId) {
+      logs = logs.filter(l => l.tripId && String(l.tripId) === String(filters.tripId));
     }
     return logs;
   },
@@ -241,7 +256,7 @@ const db = {
     const route = {
       id: getNextId(data.routes),
       ...routeData,
-      status: routeData.status || 'Scheduled',
+      status: routeData.status || 'Saved',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -317,6 +332,108 @@ const db = {
   async getActivityLogs(limit = 10) {
     const data = await readData();
     return data.activityLogs.slice(-limit).reverse();
+  },
+
+  // Notifications
+  async findNotificationById(id) {
+    const data = await readData();
+    return (data.notifications || []).find(n => String(n.id) === String(id));
+  },
+
+  async findAllNotifications(filters = {}) {
+    const data = await readData();
+    let notifications = data.notifications || [];
+    if (filters.userId) {
+      notifications = notifications.filter(n => String(n.userId) === String(filters.userId));
+    }
+    if (filters.recipientRole) {
+      notifications = notifications.filter(n => String(n.recipientRole) === String(filters.recipientRole));
+    }
+    if (filters.driverId) {
+      notifications = notifications.filter(n => String(n.driverId) === String(filters.driverId));
+    }
+    if (filters.excludeRecipientRole) {
+      notifications = notifications.filter(n => String(n.recipientRole) !== String(filters.excludeRecipientRole));
+    }
+    if (filters.read !== undefined) {
+      notifications = notifications.filter(n => !!n.read === !!filters.read);
+    }
+    return notifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  },
+
+  async createNotification(notificationData) {
+    const data = await readData();
+    if (!data.notifications) data.notifications = [];
+    const notification = {
+      id: getNextId(data.notifications),
+      ...notificationData,
+      read: false,
+      createdAt: new Date().toISOString()
+    };
+    data.notifications.push(notification);
+    await writeData(data);
+    return notification;
+  },
+
+  async updateNotification(id, updates) {
+    const data = await readData();
+    if (!data.notifications) data.notifications = [];
+    const index = data.notifications.findIndex(n => n.id === String(id));
+    if (index === -1) return null;
+    data.notifications[index] = { ...data.notifications[index], ...updates };
+    await writeData(data);
+    return data.notifications[index];
+  },
+
+  // Assignment drafts (admin saves route when assigning driver before approval)
+  async saveAssignmentDraft(bookingId, draft) {
+    const data = await readData();
+    if (!data.assignmentDrafts) data.assignmentDrafts = {};
+    data.assignmentDrafts[String(bookingId)] = {
+      ...draft,
+      updatedAt: new Date().toISOString()
+    };
+    await writeData(data);
+    return data.assignmentDrafts[String(bookingId)];
+  },
+
+  async getAssignmentDraft(bookingId) {
+    const data = await readData();
+    return data.assignmentDrafts?.[String(bookingId)] || null;
+  },
+
+  async getAssignmentDraftsForAdmin() {
+    const data = await readData();
+    return data.assignmentDrafts || {};
+  },
+
+  async deleteAssignmentDraft(bookingId) {
+    const data = await readData();
+    if (!data.assignmentDrafts) return;
+    delete data.assignmentDrafts[String(bookingId)];
+    await writeData(data);
+  },
+
+  async markNotificationsRead(userId, recipientRole, driverId) {
+    const data = await readData();
+    if (!data.notifications) return;
+    for (let i = 0; i < data.notifications.length; i++) {
+      const n = data.notifications[i];
+      let match = false;
+      if (userId && recipientRole) {
+        match = String(n.userId) === String(userId) && String(n.recipientRole) === String(recipientRole);
+      } else if (driverId && recipientRole) {
+        match = String(n.driverId) === String(driverId) && String(n.recipientRole) === String(recipientRole);
+      } else if (userId) {
+        match = String(n.userId) === String(userId);
+      } else if (recipientRole) {
+        match = String(n.recipientRole) === String(recipientRole);
+      } else if (driverId) {
+        match = String(n.driverId) === String(driverId);
+      }
+      if (match) data.notifications[i] = { ...n, read: true };
+    }
+    await writeData(data);
   }
 };
 

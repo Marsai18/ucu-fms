@@ -42,12 +42,25 @@ export const createIncident = async (req, res, next) => {
   }
 };
 
-// Update incident
+// Update incident (admin can update status and add adminResponse)
 export const updateIncident = async (req, res, next) => {
   try {
     const incident = await db.updateIncident(req.params.id, req.body);
     if (!incident) {
       return res.status(404).json({ error: 'Incident not found' });
+    }
+    if (req.body.adminResponse && req.body.adminResponse.trim()) {
+      const drivers = await db.findAllDrivers();
+      const driver = incident.driverId ? drivers.find(d => String(d.id) === String(incident.driverId)) : null;
+      await db.createNotification({
+        type: 'incident_admin_response',
+        title: 'Admin Responded to Your Incident Report',
+        message: `Admin has responded to your ${incident.incidentType || 'incident'} report: ${req.body.adminResponse.trim().slice(0, 100)}${req.body.adminResponse.length > 100 ? '...' : ''}`,
+        incidentId: incident.id,
+        recipientRole: 'driver',
+        driverId: incident.driverId,
+        adminResponse: req.body.adminResponse.trim()
+      });
     }
     res.json(incident);
   } catch (error) {

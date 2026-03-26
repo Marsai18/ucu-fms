@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { Sun, Moon, User } from 'lucide-react'
@@ -81,7 +81,7 @@ const ClientLogin = () => {
       <div className="absolute top-6 right-6">
         <button
           onClick={toggleTheme}
-          className="p-3 rounded-full bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-all duration-200 text-gray-600 dark:text-gray-300 hover:bg-ucu-blue-50 dark:hover:bg-gray-700"
+          className="p-3 rounded-full bg-white dark:bg-slate-800 shadow-lg hover:shadow-ucu transition-all duration-200 text-slate-600 dark:text-slate-300 hover:bg-ucu-gold-50 dark:hover:bg-ucu-gold-500/20 hover:text-ucu-gold-600 dark:hover:text-ucu-gold-400"
           title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
         >
           {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
@@ -141,10 +141,9 @@ const ClientLogin = () => {
         </form>
         
         <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-ucu-blue-500"></div>
-            <div className="h-2 w-2 rounded-full bg-ucu-gold-500"></div>
-            <div className="h-2 w-2 rounded-full bg-ucu-blue-500"></div>
+          <p className="text-center text-sm text-gray-500 dark:text-gray-400 mb-1">Other portals</p>
+          <div className="flex justify-center gap-4">
+            <Link to="/login" className="text-ucu-blue-600 dark:text-ucu-blue-400 hover:underline text-sm font-medium">Admin / Driver Login</Link>
           </div>
           <p className="text-center text-xs text-gray-500 dark:text-gray-400 mt-4">
             Don't have an account? <a href="mailto:fleet@ucu.ac.ug" className="text-ucu-blue-600 dark:text-ucu-blue-400 hover:underline">Contact Admin</a>

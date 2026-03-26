@@ -1,0 +1,30 @@
+/**
+ * Fleet Management System - Dark Mode Theme
+ * Seamless toggle via data-theme="dark"
+ */
+
+[data-theme="dark"] {
+  --bg-main: #0F172A;
+  --bg-card: #1E293B;
+  --bg-elevated: #334155;
+  --bg-muted: #1E293B;
+
+  --text-primary: #E2E8F0;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+
+  --border-color: #334155;
+  --border-muted: #1E293B;
+
+  --primary-color: #3B82F6;
+  --primary-hover: #60A5FA;
+  --secondary-color: #34D399;
+  --warning-color: #FBBF24;
+  --danger-color: #F87171;
+
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.3);
+
+  /* Aliases */
+  --bg-base: var(--bg-main);
+  --bg-surface: var(--bg-card);
+}

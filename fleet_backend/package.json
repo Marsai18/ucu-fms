@@ -8,20 +8,24 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "init-db": "node database/initDatabase.js",
-    "fix-db": "node fix-mysql-access.js"
+    "fix-db": "node fix-mysql-access.js",
+    "seed": "node scripts/seed-realistic-data.js"
   },
-  "keywords": ["fleet", "management", "api"],
+  "keywords": [
+    "fleet",
+    "management",
+    "api"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.18.2",
-    "mysql2": "^3.6.5",
     "bcrypt": "^5.1.1",
+    "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-validator": "^7.0.1",
     "jsonwebtoken": "^9.0.2",
-    "express-validator": "^7.0.1"
+    "mysql2": "^3.6.5"
   }
 }
-
-

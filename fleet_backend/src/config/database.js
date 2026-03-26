@@ -56,20 +56,37 @@ const initialData = {
   maintenanceRecords: [],
   routes: [],
   incidents: [],
-  activityLogs: []
+  activityLogs: [],
+  notifications: []
 };
 
 export const readData = async () => {
   if (pool) {
     throw new Error('MySQL is configured. Use db.js utilities instead.');
   }
-  try {
-    const data = await fs.readFile(DATA_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    await writeData(initialData);
-    return initialData;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const data = await fs.readFile(DATA_FILE, 'utf-8');
+      const parsed = JSON.parse(data);
+      return parsed && typeof parsed === 'object' ? parsed : initialData;
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        await writeData(initialData);
+        return initialData;
+      }
+      if (error instanceof SyntaxError) {
+        if (attempt < 2) {
+          await new Promise(r => setTimeout(r, 100));
+          continue;
+        }
+        console.warn('⚠️ data.json parse error:', error.message);
+        console.warn('   File:', DATA_FILE, '- using empty data. Restart server after fixing data.json.');
+        return initialData;
+      }
+      throw error;
+    }
   }
+  return initialData;
 };
 
 export const writeData = async (data) => {

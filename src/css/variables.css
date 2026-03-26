@@ -1,0 +1,72 @@
+/**
+ * Fleet Management System - Design Tokens
+ * Professional color system for fleet dashboard
+ */
+
+:root {
+  /* Primary colors - deep blue for core actions */
+  --primary-color: #2563EB;
+  --primary-hover: #1D4ED8;
+  --primary-light: #3B82F6;
+
+  /* Secondary - emerald for success/approvals */
+  --secondary-color: #10B981;
+  --secondary-hover: #059669;
+
+  /* Status colors */
+  --danger-color: #EF4444;
+  --danger-hover: #DC2626;
+  --warning-color: #F59E0B;
+  --warning-light: #FBBF24;
+  --info-color: #3B82F6;
+
+  /* Backgrounds - light mode */
+  --bg-main: #F8FAFC;
+  --bg-card: #FFFFFF;
+  --bg-elevated: #FFFFFF;
+  --bg-muted: #F1F5F9;
+
+  /* Text */
+  --text-primary: #1E293B;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+
+  /* Borders */
+  --border-color: #E2E8F0;
+  --border-muted: #F1F5F9;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-card: 0 6px 20px rgba(0, 0, 0, 0.05);
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 300ms cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Aliases for Tailwind/component compatibility */
+  --color-primary: var(--primary-color);
+  --color-primary-hover: var(--primary-hover);
+  --color-danger: var(--danger-color);
+  --color-danger-hover: var(--danger-hover);
+  --bg-base: var(--bg-main);
+  --bg-surface: var(--bg-card);
+  --border-default: var(--border-color);
+}

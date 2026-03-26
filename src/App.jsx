@@ -1,42 +1,124 @@
-import React from 'react'
+import React, { Suspense, lazy } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import Layout from './components/Layout'
-import Dashboard from './pages/Dashboard'
-import VehicleRegistration from './pages/VehicleRegistration'
-import BookingRequests from './pages/BookingRequests'
-import TripManagement from './pages/TripManagement'
-import MaintenanceTracking from './pages/MaintenanceTracking'
-import DriverManagement from './pages/DriverManagement'
-import FuelManagement from './pages/FuelManagement'
-import RoutePlanning from './pages/RoutePlanning'
-import IncidentManagement from './pages/IncidentManagement'
-import ComplianceSafety from './pages/ComplianceSafety'
-import GPSTracking from './pages/GPSTracking'
-import PerformanceMonitoring from './pages/PerformanceMonitoring'
-import Login from './pages/Login'
-import AdminDashboard from './pages/AdminDashboard'
-import ClientLogin from './pages/ClientLogin'
-import ClientDashboard from './pages/ClientDashboard'
-import ClientBookingRequest from './pages/ClientBookingRequest'
-import ClientHistory from './pages/ClientHistory'
 import ClientLayout from './components/ClientLayout'
-import { AuthProvider, useAuth } from './context/AuthContext'
+import DriverLayout from './components/DriverLayout'
+import HODLayout from './components/HODLayout'
+import { useAuth } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
+import { NotificationProvider } from './context/NotificationContext'
+
+// Eager-load entry points for fast first paint
+import Login from './pages/Login'
+import ClientLogin from './pages/ClientLogin'
+
+// Lazy-load heavy pages for faster initial load
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const VehicleRegistration = lazy(() => import('./pages/VehicleRegistration'))
+const BookingRequests = lazy(() => import('./pages/BookingRequests'))
+const TripManagement = lazy(() => import('./pages/TripManagement'))
+const MaintenanceTracking = lazy(() => import('./pages/MaintenanceTracking'))
+const DriverManagement = lazy(() => import('./pages/DriverManagement'))
+const FuelManagement = lazy(() => import('./pages/FuelManagement'))
+const IncidentManagement = lazy(() => import('./pages/IncidentManagement'))
+const ComplianceSafety = lazy(() => import('./pages/ComplianceSafety'))
+const GPSTracking = lazy(() => import('./pages/GPSTracking'))
+const PerformanceMonitoring = lazy(() => import('./pages/PerformanceMonitoring'))
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'))
+const ClientDashboard = lazy(() => import('./pages/ClientDashboard'))
+const ClientBookingRequest = lazy(() => import('./pages/ClientBookingRequest'))
+const ClientAvailableVehicles = lazy(() => import('./pages/ClientAvailableVehicles'))
+const ClientHistory = lazy(() => import('./pages/ClientHistory'))
+const DriverDashboard = lazy(() => import('./pages/DriverDashboard'))
+const DriverTrips = lazy(() => import('./pages/DriverTrips'))
+const DriverRoutes = lazy(() => import('./pages/DriverRoutes'))
+const DriverIncidentReport = lazy(() => import('./pages/DriverIncidentReport'))
+const HODDashboard = lazy(() => import('./pages/HODDashboard'))
+const HODRequests = lazy(() => import('./pages/HODRequests'))
+
+const PageFallback = () => (
+  <div className="min-h-[320px] flex items-center justify-center">
+    <div className="flex flex-col items-center gap-3">
+      <div className="h-10 w-10 rounded-xl bg-ucu-blue-500/20 animate-pulse" />
+      <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">Loading...</p>
+    </div>
+  </div>
+)
 
 const PrivateRoute = ({ children, adminOnly = false }) => {
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated, user, isInitialized } = useAuth()
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#e8eef4] dark:bg-[#0c1222]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-ucu-blue-500/20 animate-pulse" />
+          <p className="text-slate-500 dark:text-slate-400 font-medium">Loading...</p>
+        </div>
+      </div>
+    )
+  }
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
   }
   if (adminOnly && user?.role !== 'admin' && user?.username !== 'masai') {
+    if (user?.role === 'driver' || user?.driverId) return <Navigate to="/driver/dashboard" replace />
+    if (user?.role === 'hod') return <Navigate to="/hod/dashboard" replace />
     return <Navigate to="/client/dashboard" replace />
   }
   return children
 }
 
+const HODRoute = ({ children }) => {
+  const { isAuthenticated, user, isInitialized } = useAuth()
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#e8eef4] dark:bg-[#0c1222]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-ucu-blue-500/20 animate-pulse" />
+          <p className="text-slate-500 dark:text-slate-400 font-medium">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+  if (!isAuthenticated) return <Navigate to="/login?role=hod" replace />
+  if (user?.role !== 'hod') {
+    if (user?.role === 'admin' || user?.username === 'masai') return <Navigate to="/admin" replace />
+    if (user?.role === 'driver' || user?.driverId) return <Navigate to="/driver/dashboard" replace />
+    return <Navigate to="/client/dashboard" replace />
+  }
+  return children
+}
+
+const DriverRoute = ({ children }) => {
+  const { isAuthenticated, user, isInitialized } = useAuth()
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#e8eef4] dark:bg-[#0c1222]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-ucu-blue-500/20 animate-pulse" />
+          <p className="text-slate-500 dark:text-slate-400 font-medium">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+  if (!isAuthenticated) return <Navigate to="/driver/login" replace />
+  if (user?.role !== 'driver' && !user?.driverId) return <Navigate to="/driver/login" replace />
+  return children
+}
+
 const ClientRoute = ({ children }) => {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, isInitialized } = useAuth()
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#e8eef4] dark:bg-[#0c1222]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-ucu-blue-500/20 animate-pulse" />
+          <p className="text-slate-500 dark:text-slate-400 font-medium">Loading...</p>
+        </div>
+      </div>
+    )
+  }
   if (!isAuthenticated) {
     return <Navigate to="/client/login" replace />
   }
@@ -46,7 +128,7 @@ const ClientRoute = ({ children }) => {
 function App() {
   return (
     <ThemeProvider>
-      <AuthProvider>
+      <NotificationProvider>
         <Toaster
           position="top-right"
           toastOptions={{
@@ -80,18 +162,91 @@ function App() {
           }}
         />
         <Router>
+        <Suspense fallback={<PageFallback />}>
         <Routes>
-          {/* Admin Routes */}
+          {/* Login - unified for Admin and Driver */}
           <Route path="/login" element={<Login />} />
-          
+          <Route path="/driver/login" element={<Login />} />
+          <Route
+            path="/driver/dashboard"
+            element={
+              <DriverRoute>
+                <DriverLayout>
+                  <DriverDashboard />
+                </DriverLayout>
+              </DriverRoute>
+            }
+          />
+          <Route
+            path="/driver/trips"
+            element={
+              <DriverRoute>
+                <DriverLayout>
+                  <DriverTrips />
+                </DriverLayout>
+              </DriverRoute>
+            }
+          />
+          <Route
+            path="/driver/routes"
+            element={
+              <DriverRoute>
+                <DriverLayout>
+                  <DriverRoutes />
+                </DriverLayout>
+              </DriverRoute>
+            }
+          />
+          <Route
+            path="/driver/incidents"
+            element={
+              <DriverRoute>
+                <DriverLayout>
+                  <DriverIncidentReport />
+                </DriverLayout>
+              </DriverRoute>
+            }
+          />
+
           {/* Client Routes */}
           <Route path="/client/login" element={<ClientLogin />} />
+          <Route path="/hod/login" element={<Login />} />
+          <Route
+            path="/hod/dashboard"
+            element={
+              <HODRoute>
+                <HODLayout>
+                  <HODDashboard />
+                </HODLayout>
+              </HODRoute>
+            }
+          />
+          <Route
+            path="/hod/requests"
+            element={
+              <HODRoute>
+                <HODLayout>
+                  <HODRequests />
+                </HODLayout>
+              </HODRoute>
+            }
+          />
           <Route
             path="/client/dashboard"
             element={
               <ClientRoute>
                 <ClientLayout>
                   <ClientDashboard />
+                </ClientLayout>
+              </ClientRoute>
+            }
+          />
+          <Route
+            path="/client/vehicles"
+            element={
+              <ClientRoute>
+                <ClientLayout>
+                  <ClientAvailableVehicles />
                 </ClientLayout>
               </ClientRoute>
             }
@@ -117,14 +272,11 @@ function App() {
             }
           />
           
-          {/* Admin Routes */}
           <Route
             path="/"
             element={
               <PrivateRoute adminOnly>
-                <Layout>
-                  <Navigate to="/admin" replace />
-                </Layout>
+                <Navigate to="/admin" replace />
               </PrivateRoute>
             }
           />
@@ -209,16 +361,6 @@ function App() {
             }
           />
           <Route
-            path="/routes"
-            element={
-              <PrivateRoute adminOnly>
-                <Layout>
-                  <RoutePlanning />
-                </Layout>
-              </PrivateRoute>
-            }
-          />
-          <Route
             path="/incidents"
             element={
               <PrivateRoute adminOnly>
@@ -259,8 +401,9 @@ function App() {
             }
           />
         </Routes>
+        </Suspense>
       </Router>
-      </AuthProvider>
+      </NotificationProvider>
     </ThemeProvider>
   )
 }

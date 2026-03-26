@@ -43,9 +43,13 @@ const distanceForTrip = (trip) => {
   return end > start ? end - start : 0;
 };
 
-// Get dashboard statistics
+// Get dashboard statistics - admin only (operational alerts, fleet stats)
 export const getDashboardStats = async (req, res, next) => {
   try {
+    const isAdmin = req.user?.role === 'admin' || req.user?.username === 'masai';
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Admin access required for dashboard stats' });
+    }
     const vehicles = await db.findAllVehicles();
     const drivers = await db.findAllDrivers();
     const bookings = await db.findAllBookings();

@@ -8,16 +8,19 @@ const AdminDashboard = () => {
   const navigate = useNavigate()
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+    <div className="space-y-8">
+      <div className="bg-[var(--bg-surface)] dark:bg-slate-800/90 p-6 rounded-2xl border border-[var(--border-default)] card-glow">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">Welcome back, <span className="font-semibold text-ucu-blue-600 dark:text-ucu-blue-400">{user?.username}</span></p>
+            <p className="text-xs font-bold text-ucu-blue-600 dark:text-ucu-blue-400 uppercase tracking-widest">Admin</p>
+            <h1 className="text-3xl md:text-4xl font-display font-bold mt-1 tracking-tight">
+              <span className="text-gradient-ucu">Admin Dashboard</span>
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-2">Welcome back, <span className="font-semibold text-ucu-blue-600 dark:text-ucu-blue-400">{user?.username}</span></p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-full bg-ucu-gradient flex items-center justify-center">
-              <span className="text-white font-bold text-lg">{user?.username?.charAt(0).toUpperCase()}</span>
+            <div className="h-14 w-14 rounded-xl bg-ucu-gradient flex items-center justify-center shadow-ucu ring-2 ring-white/30 dark:ring-slate-600/30">
+              <span className="text-white font-display font-bold text-xl">{user?.username?.charAt(0).toUpperCase()}</span>
             </div>
           </div>
         </div>

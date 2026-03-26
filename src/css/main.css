@@ -1,0 +1,26 @@
+/**
+ * Fleet Management System - Main CSS Entry
+ * @import must precede all other statements
+ */
+
+@import './variables.css';
+@import './darkmode.css';
+@import './layout.css';
+@import './components.css';
+@import './dashboard.css';
+@import './tables.css';
+@import './forms.css';
+@import './animations.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Ensure visible background (Tailwind preflight may override) */
+html, body {
+  min-height: 100vh;
+  background-color: var(--bg-main, #f8fafc);
+}
+#root {
+  min-height: 100vh;
+}

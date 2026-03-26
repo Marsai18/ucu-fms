@@ -82,17 +82,18 @@ const DriverManagement = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-semibold text-gray-900">Driver Management</h1>
-        <p className="text-gray-500 mt-1">Add, track, and manage all UCU drivers from a single workspace.</p>
+        <p className="text-xs font-bold text-ucu-blue-600 dark:text-ucu-blue-400 uppercase tracking-widest">Fleet</p>
+        <h1 className="text-3xl md:text-4xl font-display font-bold text-slate-900 dark:text-white mt-1 tracking-tight">Driver Management</h1>
+        <p className="text-slate-500 dark:text-slate-400 mt-2">Add, track, and manage all UCU drivers from a single workspace.</p>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[420px_1fr] gap-6">
         {/* Create Driver */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-1 flex items-center gap-2">
-            <UserPlus size={20} className="text-primary-500" /> Add New Driver
+        <div className="bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-ucu p-6 card-glow">
+          <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+            <UserPlus size={20} className="text-ucu-blue-500" /> Add New Driver
           </h2>
           <p className="text-sm text-gray-500 mb-4">Capture personal and operational details.</p>
 
@@ -171,7 +172,7 @@ const DriverManagement = () => {
                 value={formData.assignedVehicle}
                 onChange={handleInputChange}
                 className="w-full rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-primary-100"
-                placeholder="e.g., Toyota Hilux UCU 101"
+                placeholder="e.g., Toyota Hilux UA 075 AK"
               />
             </div>
 
@@ -206,7 +207,7 @@ const DriverManagement = () => {
             <button
               type="submit"
               disabled={saving}
-              className="w-full rounded-xl bg-primary-500 text-white font-semibold py-3 hover:bg-primary-600 disabled:opacity-40"
+              className="w-full rounded-xl bg-ucu-gradient text-white font-semibold py-3 hover:shadow-ucu disabled:opacity-40 transition-all"
             >
               {saving ? 'Saving...' : 'Add Driver'}
             </button>
@@ -276,7 +277,7 @@ const DriverManagement = () => {
                   </div>
                   <button
                     onClick={() => handleDeleteDriver(driver.id)}
-                    className="text-rose-600 hover:text-rose-700 flex items-center gap-1 text-sm font-medium"
+                    className="px-3 py-1.5 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-500/20 flex items-center gap-1 text-sm font-semibold transition-all"
                   >
                     <Trash2 size={16} /> Remove
                   </button>

@@ -1,0 +1,64 @@
+/**
+ * Fleet Management System - Table Styles
+ * Alternating rows, headers, hover, responsive
+ */
+
+.table-modern {
+  width: 100%;
+  font-size: 0.875rem;
+  text-align: left;
+  border-collapse: collapse;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.table-modern thead {
+  background: var(--bg-muted);
+  border-bottom: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .table-modern thead {
+  background: rgba(51, 65, 85, 0.5);
+  border-bottom-color: var(--border-color);
+}
+
+.table-modern th {
+  padding: 14px 16px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.75rem;
+}
+
+.table-modern tbody tr {
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color var(--transition-fast);
+}
+
+.table-modern tbody tr:nth-child(even) {
+  background: rgba(248, 250, 252, 0.5);
+}
+
+[data-theme="dark"] .table-modern tbody tr:nth-child(even) {
+  background: rgba(30, 41, 59, 0.3);
+}
+
+.table-modern tbody tr:hover {
+  background: rgba(37, 99, 235, 0.04) !important;
+}
+
+[data-theme="dark"] .table-modern tbody tr:hover {
+  background: rgba(59, 130, 246, 0.08) !important;
+}
+
+.table-modern td {
+  padding: 14px 16px;
+  color: var(--text-primary);
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+}

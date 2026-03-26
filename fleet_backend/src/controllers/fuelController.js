@@ -1,4 +1,5 @@
 import db from '../utils/db.js';
+import { calcFuelEstimate } from '../utils/fuelCalculator.js';
 
 let cachedFuelPrice = null;
 let cachedFuelPriceTimestamp = null;
@@ -15,8 +16,12 @@ const httpFetch = async (...args) => {
 // Get all fuel logs
 export const getFuelLogs = async (req, res, next) => {
   try {
-    const { vehicleId } = req.query;
-    const logs = await db.findAllFuelLogs({ vehicleId });
+    const { vehicleId, driverId, tripId } = req.query;
+    const filters = {};
+    if (vehicleId) filters.vehicleId = vehicleId;
+    if (driverId) filters.driverId = driverId;
+    if (tripId) filters.tripId = tripId;
+    const logs = await db.findAllFuelLogs(filters);
     res.json(logs);
   } catch (error) {
     next(error);
@@ -26,6 +31,14 @@ export const getFuelLogs = async (req, res, next) => {
 // Create fuel log
 export const createFuelLog = async (req, res, next) => {
   try {
+    const quantity = parseFloat(req.body.quantity);
+    const cost = parseFloat(req.body.cost);
+    if (!quantity || quantity <= 0) {
+      return res.status(400).json({ error: 'Quantity must be greater than 0' });
+    }
+    if (cost == null || cost < 0) {
+      return res.status(400).json({ error: 'Cost cannot be negative' });
+    }
     const log = await db.createFuelLog(req.body);
     await db.createActivityLog({
       type: 'Fuel Logged',
@@ -99,5 +112,50 @@ export const getLiveFuelPrice = async (req, res, next) => {
     };
     cachedFuelPriceTimestamp = Date.now();
     res.json(cachedFuelPrice);
+  }
+};
+
+// Estimate fuel for a route (distance, duration, optional vehicle)
+export const getFuelEstimate = async (req, res, next) => {
+  try {
+    const { distanceKm, durationMin, vehicleId, reservePercent } = req.body || {};
+    const priceRes = await (async () => {
+      if (cachedFuelPrice && cachedFuelPriceTimestamp && (Date.now() - cachedFuelPriceTimestamp) < FUEL_PRICE_CACHE_TTL) {
+        return cachedFuelPrice;
+      }
+      try {
+        const query = encodeURIComponent('Uganda petrol price per litre');
+        const response = await httpFetch(`https://www.google.com/search?q=${query}&hl=en`, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/119.0 Safari/537.36' }
+        });
+        const html = await response.text();
+        const match = html.match(/([\d,]+(?:\.\d+)?)\s*(UGX|KES|USD|SHS|UGX\/L)/i);
+        const price = match ? parseFloat(match[1].replace(/,/g, '')) : 5500;
+        cachedFuelPrice = { pricePerLiter: price, currency: 'UGX', fetchedAt: new Date().toISOString() };
+        cachedFuelPriceTimestamp = Date.now();
+        return cachedFuelPrice;
+      } catch {
+        cachedFuelPrice = { pricePerLiter: 5500, currency: 'UGX' };
+        cachedFuelPriceTimestamp = Date.now();
+        return cachedFuelPrice;
+      }
+    })();
+
+    let vehicle = null;
+    if (vehicleId) {
+      vehicle = await db.findVehicleById(vehicleId);
+    }
+
+    const estimate = calcFuelEstimate({
+      distanceKm: Number(distanceKm) || 0,
+      durationMin: Number(durationMin) || 0,
+      vehicle,
+      pricePerLiter: priceRes?.pricePerLiter || 5500,
+      reservePercent: Number(reservePercent) || 10
+    });
+
+    res.json(estimate);
+  } catch (error) {
+    next(error);
   }
 };
