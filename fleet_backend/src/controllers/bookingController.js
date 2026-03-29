@@ -121,9 +121,9 @@ export const createBookingRequest = async (req, res, next) => {
     if (!startDateTime || !endDateTime) {
       return res.status(400).json({ error: 'Start and end date/time are required' });
     }
+    const now = new Date();
     if (startDateTime) {
       const start = new Date(startDateTime);
-      const now = new Date();
       if (start < now) {
         return res.status(400).json({ error: 'Start date/time cannot be in the past' });
       }
@@ -134,16 +134,36 @@ export const createBookingRequest = async (req, res, next) => {
       if (end <= start) {
         return res.status(400).json({ error: 'End date/time must be after start date/time' });
       }
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const maxStart = new Date(startOfToday);
+      maxStart.setDate(maxStart.getDate() + 14);
+      maxStart.setHours(23, 59, 59, 999);
+      if (start > maxStart) {
+        return res.status(400).json({
+          error: 'Trip start must be within the next 14 days from today',
+        });
+      }
+    }
+    const userId = req.body.userId || req.user?.id;
+    let clientName = null;
+    if (userId) {
+      const u = await db.findUser({ id: String(userId) });
+      if (u) {
+        const n = (u.name && String(u.name).trim()) || '';
+        clientName = n || (u.email && String(u.email).trim()) || (u.username && String(u.username).trim()) || null;
+      }
     }
     const booking = await db.createBooking({
       ...req.body,
-      userId: req.body.userId || req.user?.id,
+      userId,
+      clientName,
       status: req.body.status || 'Pending'
     });
+    const fromLabel = clientName ? ` from ${clientName}` : '';
     await db.createNotification({
       type: 'new_booking',
       title: 'New Booking Request',
-      message: `New vehicle booking request ${booking.request_id || booking.id} submitted - awaiting HOD approval.`,
+      message: `New vehicle booking request ${booking.request_id || booking.id}${fromLabel} submitted — awaiting HOD approval.`,
       bookingId: booking.id,
       recipientRole: 'hod'
     });
@@ -195,6 +215,9 @@ export const updateBookingStatus = async (req, res, next) => {
       }
     }
     if (status === 'Approved') {
+      if (userRole === 'admin' || req.user?.username === 'masai') {
+        updates.approvedByUserId = req.user?.id != null ? String(req.user.id) : undefined;
+      }
       if (driverId) updates.driverId = driverId;
       const vIds = vehicleIds && Array.isArray(vehicleIds) ? vehicleIds : (booking.vehicleId ? [booking.vehicleId] : []);
       const clientPreferredIds = booking.vehicleIds?.length ? booking.vehicleIds : (booking.vehicleId ? [String(booking.vehicleId)] : []);
@@ -255,11 +278,13 @@ export const updateBookingStatus = async (req, res, next) => {
         const alreadyHasTrip = existingTrips.some(
           t => String(t.bookingId) === String(updated.id) && t.status !== 'Completed' && t.status !== 'Cancelled'
         );
+        /** Set only when a new trip row is created this request (must be in outer scope for client notification below). */
+        let tripCreatedThisRequest = null;
         if (!alreadyHasTrip) {
           // Use draft if available (route from when driver was assigned)
           const draft = await db.getAssignmentDraft(updated.id);
           if (draft) await db.deleteAssignmentDraft(updated.id);
-          const trip = await db.createTrip({
+          tripCreatedThisRequest = await db.createTrip({
             bookingId: updated.id,
             vehicleId: vIds[0],
             vehicleIds: vIds,
@@ -274,6 +299,7 @@ export const updateBookingStatus = async (req, res, next) => {
             driverResponse: 'pending',
             tripCode: `TR${String(Date.now()).slice(-6)}`
           });
+          const trip = tripCreatedThisRequest;
           let routeData = {
             origin: 'UCU Main Campus',
             destination: updated.destination,
@@ -374,7 +400,7 @@ export const updateBookingStatus = async (req, res, next) => {
             driverEmail: driver?.email || null,
             vehiclePlate: vehiclePlates,
             vehicleDetails,
-            tripId: trip?.id || existingTrip?.id || null
+            tripId: tripCreatedThisRequest?.id ?? existingTrip?.id ?? null
           });
         }
       }

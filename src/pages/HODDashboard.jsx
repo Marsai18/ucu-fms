@@ -1,7 +1,16 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Calendar, CheckCircle2, Clock, XCircle, ArrowRight, MapPin, Users, FileText, Car } from 'lucide-react'
+import { Calendar, Clock, XCircle, Send, MapPin, Users, FileText, Car, BadgeCheck } from 'lucide-react'
 import api from '../utils/api'
+
+/** Normalize API booking status for comparisons (handles casing drift). */
+function bookingStatusNorm(b) {
+  return (b?.status ?? '').toString().trim().toLowerCase()
+}
+
+function isBookingStatus(b, canonical) {
+  return bookingStatusNorm(b) === canonical.toLowerCase()
+}
 
 const HODDashboard = () => {
   const [bookings, setBookings] = useState([])
@@ -17,7 +26,7 @@ const HODDashboard = () => {
     const load = async () => {
       try {
         const [bookRes, vehRes] = await Promise.all([
-          api.getBookingRequests(),
+          api.getBookingRequests('all'),
           api.getVehicles()
         ])
         setBookings(Array.isArray(bookRes) ? bookRes : [])
@@ -31,10 +40,56 @@ const HODDashboard = () => {
     load()
   }, [])
 
-  const pending = bookings.filter(b => b.status === 'Pending')
-  const hodApproved = bookings.filter(b => b.status === 'HODApproved')
-  const approved = bookings.filter(b => b.status === 'Approved')
-  const rejected = bookings.filter(b => b.status === 'Rejected')
+  const pending = useMemo(() => bookings.filter(b => isBookingStatus(b, 'Pending')), [bookings])
+  const hodApproved = useMemo(() => bookings.filter(b => isBookingStatus(b, 'HODApproved')), [bookings])
+  const approved = useMemo(() => bookings.filter(b => isBookingStatus(b, 'Approved')), [bookings])
+  const rejected = useMemo(() => bookings.filter(b => isBookingStatus(b, 'Rejected')), [bookings])
+
+  const statCards = useMemo(
+    () => [
+      {
+        tab: 'Pending',
+        count: pending.length,
+        label: 'Awaiting your approval',
+        shortLabel: 'Pending',
+        icon: Clock,
+        iconClass: 'text-amber-600 dark:text-amber-400',
+        wrapClass: 'bg-amber-100 dark:bg-amber-500/20',
+        description: 'Needs HOD review before Admin can see them'
+      },
+      {
+        tab: 'HODApproved',
+        count: hodApproved.length,
+        label: 'With System Admin',
+        shortLabel: 'Forwarded',
+        icon: Send,
+        iconClass: 'text-ucu-blue-600 dark:text-ucu-blue-400',
+        wrapClass: 'bg-ucu-blue-100 dark:bg-ucu-blue-500/20',
+        description: 'You approved — awaiting vehicle & driver assignment'
+      },
+      {
+        tab: 'Approved',
+        count: approved.length,
+        label: 'Fully confirmed',
+        shortLabel: 'Confirmed',
+        icon: BadgeCheck,
+        iconClass: 'text-emerald-600 dark:text-emerald-400',
+        wrapClass: 'bg-emerald-100 dark:bg-emerald-500/20',
+        description: 'Admin approved; driver assigned (read-only here)'
+      },
+      {
+        tab: 'Rejected',
+        count: rejected.length,
+        label: 'Rejected',
+        shortLabel: 'Rejected',
+        icon: XCircle,
+        iconClass: 'text-rose-600 dark:text-rose-400',
+        wrapClass: 'bg-rose-100 dark:bg-rose-500/20',
+        description: 'Declined at HOD or Admin stage'
+      }
+    ],
+    [pending.length, hodApproved.length, approved.length, rejected.length]
+  )
 
   const getVehicleName = (vid) => {
     const v = vehicles.find(x => String(x.id) === String(vid))
@@ -51,7 +106,7 @@ const HODDashboard = () => {
     setRejectReason('')
     try {
       await api.updateBookingStatus(id, 'Rejected', null, null, null, null, null, reason)
-      const data = await api.getBookingRequests()
+      const data = await api.getBookingRequests('all')
       setBookings(Array.isArray(data) ? data : [])
     } catch (err) {
       console.error(err)
@@ -73,7 +128,7 @@ const HODDashboard = () => {
     try {
       await api.updateBookingStatus(id, 'HODApproved', null, null, approvalNote, approvalNote)
       setApprovalNote('')
-      const data = await api.getBookingRequests()
+      const data = await api.getBookingRequests('all')
       setBookings(Array.isArray(data) ? data : [])
     } catch (err) {
       console.error(err)
@@ -106,50 +161,29 @@ const HODDashboard = () => {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center">
-              <Clock size={20} className="text-amber-600 dark:text-amber-400" />
+        {statCards.map(({ tab, count, label, shortLabel, icon: Icon, iconClass, wrapClass, description }) => (
+          <Link
+            key={tab}
+            to={tab === 'Pending' ? '/hod/requests' : `/hod/requests?tab=${encodeURIComponent(tab)}`}
+            className="group bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 text-left transition-all hover:border-ucu-blue-300 dark:hover:border-ucu-blue-600 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ucu-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900"
+            aria-label={`${shortLabel}: ${count} requests. ${description}. Open booking list.`}
+            title={description}
+          >
+            <div className="flex items-center gap-3">
+              <div className={`h-10 w-10 rounded-lg ${wrapClass} flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform`}>
+                <Icon size={20} className={iconClass} aria-hidden />
+              </div>
+              <div className="min-w-0">
+                <p className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">{count}</p>
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{label}</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">{description}</p>
+                <p className="text-[11px] font-medium text-ucu-blue-600 dark:text-ucu-blue-400 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  View in list →
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900 dark:text-white">{pending.length}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Pending Approval</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-ucu-blue-100 dark:bg-ucu-blue-500/20 flex items-center justify-center">
-              <ArrowRight size={20} className="text-ucu-blue-600 dark:text-ucu-blue-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900 dark:text-white">{hodApproved.length}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Forwarded to Admin</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center">
-              <CheckCircle2 size={20} className="text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900 dark:text-white">{approved.length}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Approved</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-rose-100 dark:bg-rose-500/20 flex items-center justify-center">
-              <XCircle size={20} className="text-rose-600 dark:text-rose-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900 dark:text-white">{rejected.length}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Rejected</p>
-            </div>
-          </div>
-        </div>
+          </Link>
+        ))}
       </div>
 
       <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">

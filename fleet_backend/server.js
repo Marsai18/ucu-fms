@@ -26,6 +26,7 @@ import incidentRoutes from './src/routes/incidents.js';
 import dashboardRoutes from './src/routes/dashboard.js';
 import driverPortalRoutes from './src/routes/driver.js';
 import notificationRoutes from './src/routes/notifications.js';
+import userRoutes from './src/routes/users.js';
 
 dotenv.config();
 
@@ -69,6 +70,7 @@ app.use('/api/incidents', incidentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/driver', driverPortalRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/users', userRoutes);
 
 // Error handling
 app.use(notFoundHandler);

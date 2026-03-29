@@ -1,8 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useLocation, Link } from 'react-router-dom'
-import { Calendar, Car, MapPin, CheckCircle2, Clock, AlertCircle, Users, Fuel, Building2 } from 'lucide-react'
+import { Car, MapPin, CheckCircle2, Clock, AlertCircle, Users, Fuel, Building2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../utils/api'
+import ClientTripScheduleFields from '../components/ClientTripScheduleFields'
+import { getClientBookingWindowBounds, validateClientBookingRange } from '../utils/clientBookingDates'
 
 const initialFormState = {
   vehicleId: '',
@@ -37,6 +39,13 @@ const ClientBookingRequest = () => {
   const [formData, setFormData] = useState(initialFormState)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [bookingBoundsTick, setBookingBoundsTick] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setBookingBoundsTick((n) => n + 1), 60_000)
+    return () => clearInterval(id)
+  }, [])
+
+  const bookingBounds = useMemo(() => getClientBookingWindowBounds(), [bookingBoundsTick])
 
   const formatDateShort = (date) => {
     if (!date) return 'N/A'
@@ -99,10 +108,32 @@ const ClientBookingRequest = () => {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const getMinDateTime = () => {
-    const now = new Date()
-    return now.toISOString().slice(0, 16)
-  }
+  const applyStartDateTime = useCallback(
+    (raw) => {
+      let v = raw
+      const { min, max } = bookingBounds
+      if (v && v < min) v = min
+      if (v && v > max) v = max
+      setFormData((prev) => {
+        let end = prev.endDateTime
+        const floor = v || min
+        if (end && end <= floor) end = ''
+        return { ...prev, startDateTime: v, endDateTime: end }
+      })
+    },
+    [bookingBounds]
+  )
+
+  const applyEndDateTime = useCallback(
+    (raw) => {
+      let v = raw
+      const { min } = bookingBounds
+      const startFloor = formData.startDateTime || min
+      if (v && v < startFloor) v = startFloor
+      setFormData((prev) => ({ ...prev, endDateTime: v }))
+    },
+    [bookingBounds, formData.startDateTime]
+  )
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -127,15 +158,9 @@ const ClientBookingRequest = () => {
       toast.error('Please fill in start and end date/time')
       return
     }
-    const start = new Date(formData.startDateTime)
-    const end = new Date(formData.endDateTime)
-    const now = new Date()
-    if (start < now) {
-      toast.error('Start date/time cannot be in the past')
-      return
-    }
-    if (end <= start) {
-      toast.error('End date/time must be after start date/time')
+    const range = validateClientBookingRange(formData.startDateTime, formData.endDateTime)
+    if (!range.ok) {
+      toast.error(range.message)
       return
     }
     try {
@@ -373,35 +398,15 @@ const ClientBookingRequest = () => {
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Stops along the route for route calculation</p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className={labelClass}>
-                  <Calendar size={16} className="text-ucu-blue-500" /> Start
-                </label>
-                <input
-                  type="datetime-local"
-                  name="startDateTime"
-                  value={formData.startDateTime}
-                  onChange={handleInputChange}
-                  min={getMinDateTime()}
-                  className={inputClass}
-                />
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Cannot select past dates</p>
-              </div>
-              <div>
-                <label className={labelClass}>
-                  <Calendar size={16} className="text-ucu-blue-500" /> End
-                </label>
-                <input
-                  type="datetime-local"
-                  name="endDateTime"
-                  value={formData.endDateTime}
-                  onChange={handleInputChange}
-                  min={formData.startDateTime || getMinDateTime()}
-                  className={inputClass}
-                />
-              </div>
-            </div>
+            <ClientTripScheduleFields
+              bookingBounds={bookingBounds}
+              startDateTime={formData.startDateTime}
+              endDateTime={formData.endDateTime}
+              onStartChange={applyStartDateTime}
+              onEndChange={applyEndDateTime}
+              fieldClassName="focus:ring-2 focus:ring-ucu-blue-500 focus:border-ucu-blue-500 transition-colors font-client"
+              labelRowClassName={labelClass}
+            />
 
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <button
@@ -438,9 +443,16 @@ const ClientBookingRequest = () => {
                 className="rounded-xl border border-slate-200/80 dark:border-slate-600/50 p-4 bg-slate-50/30 dark:bg-slate-700/20"
               >
                 <div className="flex items-start justify-between gap-2 mb-2">
-                  <span className="font-bold text-slate-900 dark:text-white font-client">
-                    {request.request_id || request.reference || request.id}
-                  </span>
+                  <div className="min-w-0">
+                    <span className="font-bold text-slate-900 dark:text-white font-client">
+                      {request.request_id || request.reference || request.id}
+                    </span>
+                    {(request.clientName || request.client_name) && (
+                      <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5 font-medium truncate" title={request.clientName || request.client_name}>
+                        {request.clientName || request.client_name}
+                      </p>
+                    )}
+                  </div>
                   <span
                     className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold ${
                       request.status === 'Pending'

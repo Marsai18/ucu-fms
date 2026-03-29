@@ -1,4 +1,4 @@
-e-- UCU Fleet Management System - MySQL Database Schema
+-- UCU Fleet Management System - MySQL Database Schema
 -- Created for Uganda Christian University Fleet Management System
 
 -- Create database
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
-    role ENUM('admin', 'client', 'driver', 'fleet_manager') DEFAULT 'client',
+    role ENUM('admin', 'client', 'driver', 'hod', 'fleet_manager') DEFAULT 'client',
     phone VARCHAR(20),
     status ENUM('active', 'inactive', 'suspended') DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -315,13 +315,13 @@ CREATE TABLE IF NOT EXISTS activity_logs (
 -- Insert default admin user (password: masai123 - hashed with bcrypt)
 -- Default bcrypt hash for 'masai123' (you should use bcrypt.hashSync in your app)
 INSERT INTO users (username, email, password, name, role, status) VALUES
-('masai', 'masai@ucu.ac.ug', '$2b$10$YourHashedPasswordHere', 'Masai', 'admin', 'active'),
+('masai', 'masai.absalom@ucu.ac.ug', '$2b$10$YourHashedPasswordHere', 'Masai', 'admin', 'active'),
 ('client@ucu.ac.ug', 'client@ucu.ac.ug', '$2b$10$YourHashedPasswordHere', 'Client User', 'client', 'active')
 ON DUPLICATE KEY UPDATE username=username;
 
 -- Insert sample drivers
 INSERT INTO drivers (name, license_number, phone, email, status) VALUES
-('Masai', 'DL-001', '+256 700 000 001', 'masai@ucu.ac.ug', 'Active'),
+('Masai', 'DL-001', '+256 700 000 001', 'masai.absalom@ucu.ac.ug', 'Active'),
 ('Patrick', 'DL-002', '+256 700 000 002', 'patrick@ucu.ac.ug', 'Active'),
 ('Kasimu', 'DL-003', '+256 700 000 003', 'kasimu@ucu.ac.ug', 'Active')
 ON DUPLICATE KEY UPDATE license_number=license_number;

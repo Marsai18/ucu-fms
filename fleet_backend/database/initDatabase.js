@@ -59,7 +59,7 @@ async function initDatabase() {
       (?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE username=username
     `, [
-      'masai', 'masai@ucu.ac.ug', hashedAdminPassword, 'Masai', 'admin', 'active',
+      'masai', 'masai.absalom@ucu.ac.ug', hashedAdminPassword, 'Masai', 'admin', 'active',
       'client@ucu.ac.ug', 'client@ucu.ac.ug', hashedClientPassword, 'Client User', 'client', 'active'
     ]);
 
@@ -72,14 +72,14 @@ async function initDatabase() {
       (?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE license_number=license_number
     `, [
-      'Masai', 'DL-001', '+256 700 000 001', 'masai@ucu.ac.ug', 'Active',
+      'Masai', 'DL-001', '+256 700 000 001', 'masai.absalom@ucu.ac.ug', 'Active',
       'Patrick', 'DL-002', '+256 700 000 002', 'patrick@ucu.ac.ug', 'Active',
       'Kasimu', 'DL-003', '+256 700 000 003', 'kasimu@ucu.ac.ug', 'Active'
     ]);
 
     console.log('✅ Database initialized successfully!');
     console.log('\nDefault credentials:');
-    console.log('Admin - Username: masai, Password: masai123');
+    console.log('Admin - Username: masai (or masai.absalom@ucu.ac.ug), Password: masai123');
     console.log('Client - Username: client@ucu.ac.ug, Password: client123');
 
   } catch (error) {

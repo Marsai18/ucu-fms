@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Calendar, MapPin, Clock, CheckCircle, XCircle, Hourglass } from 'lucide-react'
+import { Calendar, MapPin, Clock, CheckCircle, XCircle, Hourglass, User } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../utils/api'
 
@@ -136,6 +136,12 @@ const ClientHistory = () => {
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white font-client">
                       {request.request_id || request.reference || request.id}
                     </h3>
+                    {(request.clientName || request.client_name) && (
+                      <p className="text-sm text-slate-700 dark:text-slate-300 font-semibold flex items-center gap-1.5 mt-0.5">
+                        <User size={14} className="text-ucu-blue-500 shrink-0" />
+                        {request.clientName || request.client_name}
+                      </p>
+                    )}
                     <p className="text-sm text-slate-500 dark:text-slate-400">
                       Submitted {formatDate(request.createdAt)}
                     </p>

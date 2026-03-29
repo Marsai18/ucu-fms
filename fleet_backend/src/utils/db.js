@@ -1,4 +1,10 @@
 import { readData, writeData, getNextId } from '../config/database.js';
+import {
+  sortBookingsByRecencyDesc,
+  sortTripsByRecencyDesc,
+  sortNotificationsByRecencyDesc,
+  sortRoutesByRecencyDesc
+} from './recencySort.js';
 
 const db = {
   // Users
@@ -121,7 +127,7 @@ const db = {
     if (filters.forAdmin) {
       bookings = bookings.filter(b => b.status !== 'Pending');
     }
-    return bookings;
+    return sortBookingsByRecencyDesc(bookings);
   },
 
   async findBookingById(id) {
@@ -160,7 +166,7 @@ const db = {
   // Trips
   async findAllTrips() {
     const data = await readData();
-    return data.trips;
+    return sortTripsByRecencyDesc(data.trips || []);
   },
 
   async findTripById(id) {
@@ -248,7 +254,7 @@ const db = {
   // Routes
   async findAllRoutes() {
     const data = await readData();
-    return data.routes;
+    return sortRoutesByRecencyDesc(data.routes || []);
   },
 
   async createRoute(routeData) {
@@ -358,7 +364,19 @@ const db = {
     if (filters.read !== undefined) {
       notifications = notifications.filter(n => !!n.read === !!filters.read);
     }
-    return notifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    // Admin / HOD: optional recipientUserId targets one user; omit or empty = all users in that role
+    if (
+      filters.currentUserId != null &&
+      filters.recipientRole &&
+      (filters.recipientRole === 'admin' || filters.recipientRole === 'hod')
+    ) {
+      notifications = notifications.filter((n) => {
+        const rid = n.recipientUserId;
+        if (rid == null || String(rid).trim() === '') return true;
+        return String(rid) === String(filters.currentUserId);
+      });
+    }
+    return sortNotificationsByRecencyDesc(notifications);
   },
 
   async createNotification(notificationData) {
@@ -414,9 +432,15 @@ const db = {
     await writeData(data);
   },
 
-  async markNotificationsRead(userId, recipientRole, driverId) {
+  async markNotificationsRead(userId, recipientRole, driverId, scopeUserId = null) {
     const data = await readData();
     if (!data.notifications) return;
+    const roleScoped = (n) => {
+      if (scopeUserId == null) return true;
+      const rid = n.recipientUserId;
+      if (rid == null || String(rid).trim() === '') return true;
+      return String(rid) === String(scopeUserId);
+    };
     for (let i = 0; i < data.notifications.length; i++) {
       const n = data.notifications[i];
       let match = false;
@@ -426,6 +450,9 @@ const db = {
         match = String(n.driverId) === String(driverId) && String(n.recipientRole) === String(recipientRole);
       } else if (userId) {
         match = String(n.userId) === String(userId);
+      } else if (recipientRole === 'admin' || recipientRole === 'hod') {
+        match =
+          String(n.recipientRole) === String(recipientRole) && roleScoped(n);
       } else if (recipientRole) {
         match = String(n.recipientRole) === String(recipientRole);
       } else if (driverId) {

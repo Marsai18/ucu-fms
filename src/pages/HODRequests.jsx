@@ -1,18 +1,50 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
+import { useSearchParams, useLocation } from 'react-router-dom'
 import { Calendar, CheckCircle2, XCircle, MapPin, Car, FileText, Users } from 'lucide-react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
 
+const HOD_TABS = ['Pending', 'HODApproved', 'Approved', 'Rejected', 'All']
+
+function readTabFromSearch(searchString) {
+  try {
+    const p = new URLSearchParams(searchString).get('tab')
+    return p && HOD_TABS.includes(p) ? p : null
+  } catch {
+    return null
+  }
+}
+
 const HODRequests = () => {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { search } = useLocation()
   const [bookings, setBookings] = useState([])
   const [vehicles, setVehicles] = useState([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('Pending')
+  const [activeTab, setActiveTab] = useState(() => readTabFromSearch(search) || 'Pending')
   const [approvalModal, setApprovalModal] = useState({ open: false, bookingId: null })
   const [rejectModal, setRejectModal] = useState({ open: false, bookingId: null })
   const [previewBooking, setPreviewBooking] = useState(null)
   const [approvalNote, setApprovalNote] = useState('')
   const [rejectReason, setRejectReason] = useState('')
+
+  useEffect(() => {
+    const raw = searchParams.get('tab')
+    setActiveTab(raw && HOD_TABS.includes(raw) ? raw : 'Pending')
+  }, [searchParams])
+
+  const setTab = useCallback(
+    (tab) => {
+      if (!HOD_TABS.includes(tab)) return
+      setActiveTab(tab)
+      if (tab === 'Pending') {
+        setSearchParams({}, { replace: true })
+      } else {
+        setSearchParams({ tab }, { replace: true })
+      }
+    },
+    [setSearchParams]
+  )
 
   useEffect(() => {
     const load = async () => {
@@ -73,7 +105,7 @@ const HODRequests = () => {
       await api.updateBookingStatus(id, 'HODApproved', null, null, approvalNote, approvalNote)
       toast.success('Approved and forwarded to Admin. Your signature has been recorded.')
       setApprovalNote('')
-      const data = await api.getBookingRequests(activeTab === 'All' ? 'all' : undefined)
+      const data = await api.getBookingRequests(activeTab === 'All' ? 'all' : activeTab)
       setBookings(Array.isArray(data) ? data : [])
     } catch (err) {
       toast.error(err.message || 'Failed to approve')
@@ -102,19 +134,22 @@ const HODRequests = () => {
         <p className="text-slate-500 dark:text-slate-400 mt-1">Approve requests to forward to System Admin, or reject them.</p>
       </div>
 
-      <div className="flex flex-wrap gap-2 p-1 bg-slate-100 dark:bg-slate-700/50 rounded-xl">
-        {['Pending', 'HODApproved', 'Approved', 'Rejected', 'All'].map((tab) => (
+      <div className="flex flex-wrap gap-2 p-1 bg-slate-100 dark:bg-slate-700/50 rounded-xl" role="tablist" aria-label="Filter by booking status">
+        {HOD_TABS.map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab}
+            onClick={() => setTab(tab)}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
               activeTab === tab ? 'bg-ucu-gradient text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
             }`}
           >
-                {tab}
-              </button>
-            ))}
-          </div>
+            {tab === 'HODApproved' ? 'HOD approved' : tab}
+          </button>
+        ))}
+      </div>
 
           <p className="text-sm text-slate-600 dark:text-slate-400">
             <strong>Flow:</strong> Client requests come here first. Add your approval/signature, then forward to Admin. Admin never sees Pending requests.
@@ -126,6 +161,7 @@ const HODRequests = () => {
             <thead className="bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400">
               <tr>
                 <th className="py-3 px-4 font-semibold">Request</th>
+                <th className="py-3 px-4 font-semibold">Requested by</th>
                 <th className="py-3 px-4 font-semibold">Department</th>
                 <th className="py-3 px-4 font-semibold">Vehicle</th>
                 <th className="py-3 px-4 font-semibold">Destination</th>
@@ -141,6 +177,9 @@ const HODRequests = () => {
                   <td className="py-3 px-4">
                     <span className="font-semibold text-slate-900 dark:text-white">{b.request_id || b.id}</span>
                     {b.purpose && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{b.purpose}</p>}
+                  </td>
+                  <td className="py-3 px-4 text-slate-600 dark:text-slate-300 whitespace-nowrap max-w-[180px] truncate" title={b.clientName || b.client_name || ''}>
+                    {b.clientName || b.client_name || '—'}
                   </td>
                   <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{b.department || '—'}</td>
                   <td className="py-3 px-4 text-slate-600 dark:text-slate-300 whitespace-nowrap max-w-[200px] truncate" title={getVehicleDisplay(b)}>{getVehicleDisplay(b)}</td>
@@ -217,6 +256,12 @@ const HODRequests = () => {
                 <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1">Request ID</p>
                 <p className="font-mono font-bold text-slate-900 dark:text-white">{previewBooking.request_id || previewBooking.id}</p>
               </div>
+              {(previewBooking.clientName || previewBooking.client_name) && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1 flex items-center gap-1"><Users size={12} /> Requested by</p>
+                  <p className="text-slate-900 dark:text-white font-medium">{previewBooking.clientName || previewBooking.client_name}</p>
+                </div>
+              )}
               <div>
                 <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1 flex items-center gap-1"><MapPin size={12} /> Destination</p>
                 <p className="text-slate-900 dark:text-white">{previewBooking.destination || '—'}</p>

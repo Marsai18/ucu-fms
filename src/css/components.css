@@ -37,20 +37,41 @@
   transform: translateY(-2px);
 }
 
+/* Notification dropdown (shared) */
+.fms-notif-panel {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-color);
+  box-shadow:
+    0 4px 6px -1px rgb(15 23 42 / 0.06),
+    0 24px 48px -12px rgb(15 23 42 / 0.12);
+  background: var(--bg-elevated);
+}
+
+[data-theme="dark"] .fms-notif-panel {
+  border-color: rgba(71, 85, 105, 0.55);
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.35),
+    0 24px 48px -12px rgb(0 0 0 / 0.45);
+}
+
 /* Primary Button */
 .btn-primary {
-  background: var(--primary-color);
+  background: linear-gradient(180deg, var(--primary-light) 0%, var(--primary-color) 100%);
   color: white;
-  border-radius: 8px;
-  padding: 10px 18px;
+  border-radius: var(--radius-lg);
+  padding: 10px 20px;
   border: none;
   cursor: pointer;
   font-weight: 600;
-  transition: background var(--transition-base), transform var(--transition-fast);
+  font-size: 0.875rem;
+  letter-spacing: 0.01em;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.08), 0 2px 8px rgb(37 99 235 / 0.2);
+  transition: background var(--transition-base), transform var(--transition-fast), box-shadow var(--transition-base);
 }
 
 .btn-primary:hover {
   background: var(--primary-hover);
+  box-shadow: 0 2px 4px rgb(15 23 42 / 0.1), 0 4px 14px rgb(37 99 235 / 0.28);
 }
 
 .btn-primary:active {
@@ -61,28 +82,32 @@
 .btn-secondary {
   background: var(--bg-muted);
   color: var(--text-primary);
-  border-radius: 8px;
-  padding: 10px 18px;
+  border-radius: var(--radius-lg);
+  padding: 10px 20px;
   border: 1px solid var(--border-color);
   cursor: pointer;
   font-weight: 600;
-  transition: all var(--transition-base);
+  font-size: 0.875rem;
+  transition: background var(--transition-base), border-color var(--transition-base), box-shadow var(--transition-base);
 }
 
 .btn-secondary:hover {
-  background: var(--border-color);
+  background: var(--border-muted);
+  border-color: var(--text-muted);
 }
 
 /* Danger Button */
 .btn-danger {
-  background: var(--danger-color);
+  background: linear-gradient(180deg, #f87171 0%, var(--danger-color) 100%);
   color: white;
-  border-radius: 8px;
-  padding: 10px 18px;
+  border-radius: var(--radius-lg);
+  padding: 10px 20px;
   border: none;
   cursor: pointer;
   font-weight: 600;
-  transition: background var(--transition-base);
+  font-size: 0.875rem;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.08);
+  transition: background var(--transition-base), transform var(--transition-fast);
 }
 
 .btn-danger:hover {

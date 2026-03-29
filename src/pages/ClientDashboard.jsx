@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useNotifications } from '../context/NotificationContext'
 import { Calendar, MapPin, Clock, CheckCircle, XCircle, Send, History, Car, ChevronRight, Users, Building2, Bell } from 'lucide-react'
 import NotificationItem from '../components/NotificationItem'
+import ClientTripScheduleFields from '../components/ClientTripScheduleFields'
 import toast from 'react-hot-toast'
 import api from '../utils/api'
+import { getClientBookingWindowBounds, validateClientBookingRange } from '../utils/clientBookingDates'
 
 const initialFormState = {
   vehicleId: '',
@@ -47,38 +49,49 @@ const ClientDashboard = () => {
   const [vehicleFilters, setVehicleFilters] = useState({ minSeats: '', routeType: '', vehicleType: '' })
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  /** Refresh min/max for datetime-local once per minute so values stay valid without thrashing on every poll. */
+  const [bookingBoundsTick, setBookingBoundsTick] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setBookingBoundsTick((n) => n + 1), 60_000)
+    return () => clearInterval(id)
+  }, [])
 
-  const loadData = async () => {
+  const bookingBounds = useMemo(() => getClientBookingWindowBounds(), [bookingBoundsTick])
+
+  const loadData = useCallback(async ({ silent = false } = {}) => {
     try {
-      setLoading(true)
+      if (!silent) setLoading(true)
       const [bookingRes, vehicleRes] = await Promise.all([
         api.getBookingRequests(),
         api.getVehicles()
       ])
       const requests = Array.isArray(bookingRes) ? bookingRes : []
       setRecentRequests(requests.slice(0, 5))
-        setStats({
-          totalRequests: requests.length,
-          pendingRequests: requests.filter(r => ['pending', 'hodapproved'].includes((r.status || '').toLowerCase())).length,
-          approvedRequests: requests.filter(r => (r.status || '').toLowerCase() === 'approved').length,
-          rejectedRequests: requests.filter(r => (r.status || '').toLowerCase() === 'rejected').length
-        })
+      setStats({
+        totalRequests: requests.length,
+        pendingRequests: requests.filter(r => ['pending', 'hodapproved'].includes((r.status || '').toLowerCase())).length,
+        approvedRequests: requests.filter(r => (r.status || '').toLowerCase() === 'approved').length,
+        rejectedRequests: requests.filter(r => (r.status || '').toLowerCase() === 'rejected').length
+      })
       setVehicles(Array.isArray(vehicleRes) ? vehicleRes : [])
     } catch (error) {
       toast.error(error.message || 'Failed to load dashboard data')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
-  }
-
-  useEffect(() => {
-    loadData()
   }, [])
 
   useEffect(() => {
-    const interval = setInterval(loadData, 20000)
+    loadData({ silent: false })
+  }, [loadData])
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return
+      loadData({ silent: true })
+    }, 20000)
     return () => clearInterval(interval)
-  }, [])
+  }, [loadData])
 
   const availableVehicles = useMemo(() => {
     let list = vehicles.filter((v) => (v.operationalStatus || '').toLowerCase() === 'active')
@@ -100,10 +113,32 @@ const ClientDashboard = () => {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const getMinDateTime = () => {
-    const now = new Date()
-    return now.toISOString().slice(0, 16)
-  }
+  const applyStartDateTime = useCallback(
+    (raw) => {
+      let v = raw
+      const { min, max } = bookingBounds
+      if (v && v < min) v = min
+      if (v && v > max) v = max
+      setFormData((prev) => {
+        let end = prev.endDateTime
+        const floor = v || min
+        if (end && end <= floor) end = ''
+        return { ...prev, startDateTime: v, endDateTime: end }
+      })
+    },
+    [bookingBounds]
+  )
+
+  const applyEndDateTime = useCallback(
+    (raw) => {
+      let v = raw
+      const { min } = bookingBounds
+      const startFloor = formData.startDateTime || min
+      if (v && v < startFloor) v = startFloor
+      setFormData((prev) => ({ ...prev, endDateTime: v }))
+    },
+    [bookingBounds, formData.startDateTime]
+  )
 
   const handleSubmitRequest = async (e) => {
     e.preventDefault()
@@ -128,15 +163,9 @@ const ClientDashboard = () => {
       toast.error('Please fill in start and end date/time')
       return
     }
-    const start = new Date(formData.startDateTime)
-    const end = new Date(formData.endDateTime)
-    const now = new Date()
-    if (start < now) {
-      toast.error('Start date/time cannot be in the past')
-      return
-    }
-    if (end <= start) {
-      toast.error('End date/time must be after start date/time')
+    const range = validateClientBookingRange(formData.startDateTime, formData.endDateTime)
+    if (!range.ok) {
+      toast.error(range.message)
       return
     }
     try {
@@ -153,7 +182,7 @@ const ClientDashboard = () => {
       })
       toast.success('Request submitted. HOD will review, then Admin will assign a driver.')
       setFormData(initialFormState)
-      loadData()
+      loadData({ silent: true })
     } catch (error) {
       toast.error(error.message || 'Could not submit request')
     } finally {
@@ -333,35 +362,14 @@ const ClientDashboard = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2 font-client">
-                <Calendar size={16} className="text-ucu-blue-500" /> Start
-              </label>
-              <input
-                type="datetime-local"
-                name="startDateTime"
-                value={formData.startDateTime}
-                onChange={handleFormChange}
-                min={getMinDateTime()}
-                className="w-full rounded-xl border-2 border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white py-2.5 px-4 mt-1"
-              />
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Cannot select past dates</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2 font-client">
-                <Calendar size={16} className="text-ucu-blue-500" /> End
-              </label>
-              <input
-                type="datetime-local"
-                name="endDateTime"
-                value={formData.endDateTime}
-                onChange={handleFormChange}
-                min={formData.startDateTime || getMinDateTime()}
-                className="w-full rounded-xl border-2 border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white py-2.5 px-4 mt-1"
-              />
-            </div>
-          </div>
+          <ClientTripScheduleFields
+            bookingBounds={bookingBounds}
+            startDateTime={formData.startDateTime}
+            endDateTime={formData.endDateTime}
+            onStartChange={applyStartDateTime}
+            onEndChange={applyEndDateTime}
+            fieldClassName="focus:ring-2 focus:ring-ucu-blue-500"
+          />
 
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <button
@@ -529,6 +537,11 @@ const ClientDashboard = () => {
                       {request.status}
                     </span>
                   </div>
+                  {(request.clientName || request.client_name) && (
+                    <p className="text-sm text-slate-600 dark:text-slate-400 font-medium font-client truncate">
+                      {request.clientName || request.client_name}
+                    </p>
+                  )}
                   <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
                     <MapPin size={14} className="text-ucu-blue-500 shrink-0" />
                     <span className="truncate">{request.destination || '—'}</span>

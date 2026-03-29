@@ -65,8 +65,12 @@ const Login = () => {
         toast.error(errorMsg)
       }
     } catch (err) {
-      if (loginAs === 'admin' && username === 'masai' && password === 'masai123') {
-        const mockRes = await login('masai', 'masai123').catch(() => ({ ok: true }))
+      if (
+        loginAs === 'admin' &&
+        (username === 'masai' || username === 'masai.absalom@ucu.ac.ug') &&
+        password === 'masai123'
+      ) {
+        const mockRes = await login('masai.absalom@ucu.ac.ug', 'masai123').catch(() => ({ ok: true }))
         setLoading(false)
         if (mockRes?.ok) {
           toast.success('Login successful! Welcome back!')
@@ -185,15 +189,15 @@ const Login = () => {
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              {loginAs === 'driver' || loginAs === 'client' ? 'Email Address' : 'Username'}
+              {loginAs === 'driver' || loginAs === 'client' || loginAs === 'admin' ? 'Email Address' : 'Username'}
             </label>
             <input
-              type={loginAs === 'driver' || loginAs === 'client' ? 'email' : 'text'}
+              type={loginAs === 'driver' || loginAs === 'client' || loginAs === 'admin' ? 'email' : 'text'}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-ucu-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-colors"
-              placeholder={loginAs === 'driver' ? 'Enter your UCU email' : loginAs === 'client' ? 'Enter your UCU email' : 'Enter username'}
-              autoComplete={loginAs === 'driver' || loginAs === 'client' ? 'email' : 'username'}
+              placeholder={loginAs === 'driver' || loginAs === 'client' || loginAs === 'admin' ? 'Enter your UCU email' : 'Enter username'}
+              autoComplete={loginAs === 'driver' || loginAs === 'client' || loginAs === 'admin' ? 'email' : 'username'}
               required
             />
           </div>
@@ -221,12 +225,6 @@ const Login = () => {
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
-          <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-4">
-            {loginAs === 'admin' && 'Hint: masai / masai123'}
-            {loginAs === 'client' && 'Hint: client@ucu.ac.ug / client123'}
-            {loginAs === 'hod' && 'Hint: hod@ucu.ac.ug / hod123'}
-            {loginAs === 'driver' && 'Hint: david.ssebunya@ucu.ac.ug / driver123'}
-          </p>
         </form>
 
         <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">

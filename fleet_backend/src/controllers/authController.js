@@ -28,17 +28,46 @@ export const login = async (req, res, next) => {
 
       user = users[0];
 
-      // Verify password using bcrypt
-      const passwordMatch = await bcrypt.compare(password, user.password);
+      const st = (user.status || 'active').toLowerCase();
+      if (st === 'suspended' || st === 'inactive') {
+        return res.status(403).json({
+          error: 'This account is suspended or access has been revoked. Contact an administrator.',
+        });
+      }
+
+      // Plain text (current default) or legacy bcrypt hash
+      let passwordMatch = false;
+      if (user.password && String(user.password).startsWith('$2')) {
+        passwordMatch = await bcrypt.compare(password, user.password);
+      } else {
+        passwordMatch = user.password === password;
+      }
       if (!passwordMatch) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
     } else {
       // Fallback to JSON storage
       const data = await readData();
-      user = data.users.find(u => (u.username === username || u.email === username) && u.password === password);
+      user = data.users.find(u => u.username === username || u.email === username);
 
       if (!user) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      const st = (user.status || 'active').toLowerCase();
+      if (st === 'suspended' || st === 'inactive') {
+        return res.status(403).json({
+          error: 'This account is suspended or access has been revoked. Contact an administrator.',
+        });
+      }
+
+      let passwordMatch = false;
+      if (user.password && String(user.password).startsWith('$2')) {
+        passwordMatch = await bcrypt.compare(password, user.password);
+      } else {
+        passwordMatch = user.password === password;
+      }
+      if (!passwordMatch) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
     }
@@ -70,7 +99,7 @@ export const getDemoToken = async (req, res, next) => {
   try {
     const { username, password } = req.body || {};
     const demoUsers = [
-      { username: 'masai', password: 'masai123', id: '1', role: 'admin', name: 'Masai' },
+      { username: 'masai', email: 'masai.absalom@ucu.ac.ug', password: 'masai123', id: '1', role: 'admin', name: 'Masai' },
       { username: 'client@ucu.ac.ug', password: 'client123', id: '2', role: 'client', name: 'Client User' },
       { username: 'david.ssebunya@ucu.ac.ug', password: 'driver123', id: '3', role: 'driver', driverId: '1', name: 'David Ssebunya' },
       { username: 'hod@ucu.ac.ug', password: 'hod123', id: '7', role: 'hod', name: 'Head of Department' },

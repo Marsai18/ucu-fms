@@ -1,5 +1,6 @@
 import db from '../utils/db.js';
 import { readData } from '../config/database.js';
+import { adminRecipientFromTripBooking } from '../utils/notificationTargets.js';
 
 // Get all trips
 export const getTrips = async (req, res, next) => {
@@ -100,7 +101,8 @@ export const updateTrip = async (req, res, next) => {
           message: `Driver declined trip ${currentTrip.tripCode || tripId}. Reason: ${updates.declineReason}`,
           tripId,
           recipientRole: 'admin',
-          driverId: currentTrip.driverId
+          driverId: currentTrip.driverId,
+          ...(await adminRecipientFromTripBooking(currentTrip))
         });
       }
       if (updates.driverResponse === 'accepted' && updates.assignmentFeedback) {
@@ -110,7 +112,8 @@ export const updateTrip = async (req, res, next) => {
           message: `Driver feedback for trip ${currentTrip.tripCode || tripId}: ${String(updates.assignmentFeedback).slice(0, 100)}${String(updates.assignmentFeedback).length > 100 ? '...' : ''}`,
           tripId,
           recipientRole: 'admin',
-          driverId: currentTrip.driverId
+          driverId: currentTrip.driverId,
+          ...(await adminRecipientFromTripBooking(currentTrip))
         });
       }
     }
@@ -123,7 +126,8 @@ export const updateTrip = async (req, res, next) => {
           message: `Driver submitted feedback for trip ${currentTrip.tripCode || tripId}`,
           tripId,
           recipientRole: 'admin',
-          driverId: currentTrip.driverId
+          driverId: currentTrip.driverId,
+          ...(await adminRecipientFromTripBooking(currentTrip))
         });
       }
     }
@@ -141,7 +145,8 @@ export const updateTrip = async (req, res, next) => {
         title: 'Trip Report Submitted',
         message: `Driver submitted trip report for ${currentTrip.tripCode || 'trip'} ${currentTrip.id}`,
         tripId: currentTrip.id,
-        recipientRole: 'admin'
+        recipientRole: 'admin',
+        ...(await adminRecipientFromTripBooking(currentTrip))
       });
     }
 

@@ -2,6 +2,8 @@
 
 This guide shows you multiple ways to access and manage your UCU Fleet Management database.
 
+**Schema reference:** For every table, column, data type, default, and constraint as defined in `fleet_backend/database/schema.sql`, see [`fleet_backend/database/DATABASE_SCHEMA.md`](fleet_backend/database/DATABASE_SCHEMA.md).
+
 ## Method 1: MySQL Command Line (Built-in)
 
 ### Windows:
@@ -81,25 +83,25 @@ SELECT * FROM vehicles;
 SELECT * FROM drivers;
 
 -- View all bookings
-SELECT * FROM booking_requests;
+SELECT * FROM bookings;
 
 -- View booking with vehicle and driver info
 SELECT 
-    br.id,
-    br.request_id,
+    b.id,
+    b.request_id,
     v.plate_number,
     v.make,
     v.model,
-    d.name as driver_name,
-    br.status,
-    br.start_date,
-    br.end_date
-FROM booking_requests br
-LEFT JOIN vehicles v ON br.vehicle_id = v.id
-LEFT JOIN drivers d ON br.driver_id = d.id;
+    d.name AS driver_name,
+    b.status,
+    b.start_date,
+    b.end_date
+FROM bookings b
+LEFT JOIN vehicles v ON b.vehicle_id = v.id
+LEFT JOIN drivers d ON b.driver_id = d.id;
 
 -- View fuel logs
-SELECT * FROM fuel_logs ORDER BY date DESC;
+SELECT * FROM fuel_logs ORDER BY refuel_date DESC;
 
 -- View maintenance records
 SELECT * FROM maintenance_records ORDER BY service_date DESC;
@@ -201,19 +203,19 @@ SELECT COUNT(*) FROM drivers;
 
 ### Insert Test Data:
 ```sql
--- Insert a test vehicle
+-- Insert a test vehicle (operational_status uses schema ENUM values)
 INSERT INTO vehicles (plate_number, make, model, year, fuel_type, operational_status)
-VALUES ('UCU 999', 'Toyota', 'Land Cruiser', 2023, 'Diesel', 'Active');
+VALUES ('UCU 999', 'Toyota', 'Land Cruiser', 2023, 'Diesel', 'Available');
 
 -- Insert a test driver
-INSERT INTO drivers (name, license_number, license_expiry, phone, email, status)
+INSERT INTO drivers (name, license_number, license_expiry_date, phone, email, status)
 VALUES ('Test Driver', 'DL999999', '2025-12-31', '+256 700 999 999', 'test@ucu.ac.ug', 'Active');
 ```
 
 ### Update Data:
 ```sql
 -- Update vehicle status
-UPDATE vehicles SET operational_status = 'Active' WHERE id = 1;
+UPDATE vehicles SET operational_status = 'Available' WHERE id = 1;
 
 -- Update driver info
 UPDATE drivers SET phone = '+256 700 888 888' WHERE id = 1;
@@ -227,8 +229,8 @@ DELETE FROM vehicles WHERE id = 1;
 
 ### Reset Database (if needed):
 ```bash
-# From backend directory
-cd backend
+# From fleet_backend directory
+cd fleet_backend
 npm run init-db
 ```
 
@@ -256,7 +258,7 @@ SELECT COUNT(*) as total_drivers FROM drivers;
 
 ## Database Connection from Backend
 
-The backend connects using these settings (from `backend/.env`):
+The backend connects using these settings (from `fleet_backend/.env` or project `.env` as configured):
 - **Host**: `localhost`
 - **Port**: `3306`
 - **User**: `root`
@@ -266,7 +268,7 @@ The backend connects using these settings (from `backend/.env`):
 ## Troubleshooting
 
 ### "Access Denied" Error:
-- Check your MySQL password in `backend/.env`
+- Check your MySQL password in `.env` (e.g. `fleet_backend/.env`)
 - Verify MySQL service is running
 - Try resetting MySQL password if needed
 
@@ -277,7 +279,7 @@ The backend connects using these settings (from `backend/.env`):
 
 ### "Database Doesn't Exist":
 ```bash
-cd backend
+cd fleet_backend
 npm run init-db
 ```
 
@@ -287,7 +289,7 @@ npm run init-db
 **For developers**: VS Code MySQL Extension or DBeaver
 **For quick access**: Command line MySQL
 
-Choose the method that works best for you! 🚀
+Choose the method that works best for you.
 
 
 

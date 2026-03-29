@@ -82,11 +82,50 @@ class API {
     } catch (error) {
       // Handle network errors
       if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
-        throw new Error('Cannot connect to server. Make sure the backend is running on http://localhost:5000');
+        throw new Error(
+          'Cannot connect to the API. Check that the backend is running and VITE_API_URL is set correctly for this environment.'
+        );
       }
       console.error('API Error:', error);
       throw error;
     }
+  }
+
+  // Users (admin)
+  async getUsers() {
+    return this.request('/users');
+  }
+
+  async getUser(id) {
+    return this.request(`/users/${id}`);
+  }
+
+  async createUser(payload) {
+    return this.request('/users', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async updateUser(id, payload) {
+    return this.request(`/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async setUserPassword(id, password) {
+    return this.request(`/users/${id}/password`, {
+      method: 'PUT',
+      body: JSON.stringify({ password }),
+    });
+  }
+
+  async setUserStatus(id, status) {
+    return this.request(`/users/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
   }
 
   // Auth
@@ -323,9 +362,13 @@ class API {
     });
   }
 
-  // Dashboard
-  async getDashboardStats() {
-    return this.request('/dashboard/stats');
+  // Dashboard (omit window for legacy 6-month series; Layout/sidebar use this)
+  async getDashboardStats(window) {
+    let path = '/dashboard/stats';
+    if (window && ['today', 'week', 'month'].includes(window)) {
+      path += `?window=${encodeURIComponent(window)}`;
+    }
+    return this.request(path);
   }
 
   // Driver Portal (requires driver auth)

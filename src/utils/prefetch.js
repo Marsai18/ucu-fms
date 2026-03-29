@@ -1,5 +1,6 @@
 const prefetchMap = {
   '/admin': () => import('../pages/AdminDashboard'),
+  '/users': () => import('../pages/UserManagement'),
   '/dashboard': () => import('../pages/Dashboard'),
   '/vehicles': () => import('../pages/VehicleRegistration'),
   '/booking': () => import('../pages/BookingRequests'),

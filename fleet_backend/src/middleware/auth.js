@@ -31,4 +31,16 @@ export const requireRole = (...roles) => {
   };
 };
 
+/** Admin UI and fleet admin APIs (matches frontend PrivateRoute adminOnly). */
+export const requireAdmin = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  const role = req.user.role;
+  if (role === 'admin' || req.user.username === 'masai') {
+    return next();
+  }
+  return res.status(403).json({ error: 'Admin access required' });
+};
+
 

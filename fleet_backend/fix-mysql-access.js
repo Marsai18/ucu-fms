@@ -107,7 +107,7 @@ async function fixDatabase() {
     // Insert admin user
     await connection.query(`
       INSERT INTO users (username, email, password, role, created_at) 
-      VALUES ('masai', 'masai@ucu.ac.ug', ?, 'admin', NOW())
+      VALUES ('masai', 'masai.absalom@ucu.ac.ug', ?, 'admin', NOW())
     `, [hashedPassword]);
     
     console.log('   ✅ Admin user created:\n');

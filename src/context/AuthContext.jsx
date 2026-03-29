@@ -78,7 +78,7 @@ export const AuthProvider = ({ children }) => {
           }
         }
       } catch (_) {}
-      return { ok: false, error: error.message || 'Login failed. Make sure the backend is running on http://localhost:5000' }
+      return { ok: false, error: error.message || 'Login failed. Check your connection and API configuration (VITE_API_URL).' }
     }
   }
 

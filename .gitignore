@@ -37,3 +37,6 @@ lerna-debug.log*
 
 # Vite
 .vite
+
+# Local credential inventory (keep out of remote)
+SYSTEM_USERS.md

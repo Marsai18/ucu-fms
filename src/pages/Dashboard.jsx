@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Car,
   Users,
@@ -6,11 +7,12 @@ import {
   Wrench,
   Calendar,
   TrendingUp,
-  Activity,
   Bell,
-  AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  Plus,
+  MapPin,
 } from 'lucide-react'
+import { useTheme } from '../context/ThemeContext'
 import {
   BarChart,
   Bar,
@@ -28,16 +30,50 @@ import {
 } from 'recharts'
 import api from '../utils/api'
 
+const accentBar = {
+  blue: 'bg-blue-500',
+  sky: 'bg-sky-500',
+  emerald: 'bg-emerald-500',
+  amber: 'bg-amber-500',
+  violet: 'bg-violet-500',
+  rose: 'bg-rose-500'
+}
+
+const vehicleStatusBadgeClass = (status) => {
+  const s = (status || '').toLowerCase()
+  if (s.includes('active') && !s.includes('inactive')) {
+    return 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/35'
+  }
+  if (s.includes('maintenance') || s.includes('repair')) {
+    return 'bg-rose-500/15 text-rose-300 ring-1 ring-rose-500/35'
+  }
+  if (s.includes('trip') || s.includes('on-trip')) {
+    return 'bg-blue-500/15 text-blue-300 ring-1 ring-blue-500/35'
+  }
+  if (s.includes('idle') || s.includes('park') || s.includes('available')) {
+    return 'bg-amber-500/15 text-amber-200 ring-1 ring-amber-500/35'
+  }
+  return 'bg-slate-500/15 text-slate-300 ring-1 ring-slate-500/30'
+}
+
 const Dashboard = () => {
+  const { isDarkMode } = useTheme()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [timeframe, setTimeframe] = useState('today')
+
+  const chartGrid = isDarkMode ? '#334155' : '#e2e8f0'
+  const chartTick = isDarkMode ? '#94a3b8' : '#64748b'
+  const tooltipStyle = isDarkMode
+    ? { borderRadius: 12, border: '1px solid #334155', background: '#1e293b', color: '#f1f5f9' }
+    : { borderRadius: 12, border: '1px solid #e2e8f0', background: '#fff' }
 
   const fetchStats = React.useCallback(async () => {
     setError(null)
     setLoading(true)
     try {
-      const response = await api.getDashboardStats()
+      const response = await api.getDashboardStats(timeframe)
       setData(response)
     } catch (err) {
       console.error('Failed to fetch dashboard stats:', err)
@@ -45,7 +81,7 @@ const Dashboard = () => {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [timeframe])
 
   useEffect(() => {
     fetchStats()
@@ -82,58 +118,70 @@ const Dashboard = () => {
 
   const statCards = useMemo(() => ([
     {
-      title: 'Total Vehicles',
+      title: 'Total Fleet',
       value: stats.totalVehicles,
       icon: Car,
-      change: '+2',
-      color: 'text-[#2563EB] dark:text-blue-400',
+      change: '↑ Fleet headcount',
+      trend: 'up',
+      iconColor: 'text-blue-600 dark:text-blue-300 drop-shadow-[0_1px_1px_rgba(37,99,235,0.35)]',
       bg: 'bg-blue-500/10 dark:bg-blue-500/20',
-      chip: 'Fleet Size'
+      chip: 'Fleet',
+      accent: 'blue'
     },
     {
       title: 'Active Trips',
       value: stats.activeTrips,
       icon: Calendar,
-      change: '+1',
-      color: 'text-sky-600 dark:text-sky-400',
+      change: '↑ Live operations',
+      trend: 'up',
+      iconColor: 'text-sky-600 dark:text-sky-300 drop-shadow-[0_1px_1px_rgba(2,132,199,0.35)]',
       bg: 'bg-sky-500/10 dark:bg-sky-500/20',
-      chip: 'Live'
+      chip: 'Operations',
+      accent: 'sky'
     },
     {
-      title: 'Drivers Available',
+      title: 'Drivers',
       value: stats.totalDrivers,
       icon: Users,
-      change: '+1',
-      color: 'text-emerald-600 dark:text-emerald-400',
+      change: '↑ Active pool',
+      trend: 'up',
+      iconColor: 'text-emerald-600 dark:text-emerald-300 drop-shadow-[0_1px_1px_rgba(5,150,105,0.35)]',
       bg: 'bg-emerald-500/10 dark:bg-emerald-500/20',
-      chip: 'Onboarding'
+      chip: 'Personnel',
+      accent: 'emerald'
     },
     {
-      title: 'Fuel Usage (UGX)',
+      title: 'Fuel Spend (UGX)',
       value: `UGX ${Number(stats.totalFuelCost).toLocaleString()}`,
       icon: Fuel,
-      change: '+5%',
-      color: 'text-amber-600 dark:text-amber-400',
+      change: 'Period total',
+      trend: 'neutral',
+      iconColor: 'text-amber-600 dark:text-amber-300 drop-shadow-[0_1px_1px_rgba(217,119,6,0.35)]',
       bg: 'bg-amber-500/10 dark:bg-amber-500/20',
-      chip: 'This Month'
+      chip: 'Fuel',
+      accent: 'amber'
     },
     {
       title: 'Pending Bookings',
       value: stats.pendingBookings,
       icon: Calendar,
-      change: '-2',
-      color: 'text-violet-600 dark:text-violet-400',
+      change: stats.pendingBookings > 0 ? '⚠ Awaiting review' : '✓ Queue clear',
+      trend: stats.pendingBookings > 0 ? 'warn' : 'up',
+      iconColor: 'text-violet-600 dark:text-violet-300 drop-shadow-[0_1px_1px_rgba(124,58,237,0.35)]',
       bg: 'bg-violet-500/10 dark:bg-violet-500/20',
-      chip: 'Approval'
+      chip: 'Approvals',
+      accent: 'violet'
     },
     {
-      title: 'Maintenance Alerts',
+      title: 'Maintenance',
       value: upcomingMaintenanceCount ?? 0,
       icon: Wrench,
-      change: 'Scheduled',
-      color: 'text-rose-600 dark:text-rose-400',
+      change: (upcomingMaintenanceCount ?? 0) > 0 ? '⚠ Windows due' : '✓ On track',
+      trend: (upcomingMaintenanceCount ?? 0) > 0 ? 'warn' : 'up',
+      iconColor: 'text-rose-600 dark:text-rose-300 drop-shadow-[0_1px_1px_rgba(225,29,72,0.35)]',
       bg: 'bg-rose-500/10 dark:bg-rose-500/20',
-      chip: 'Upcoming'
+      chip: 'Service',
+      accent: 'rose'
     }
   ]), [stats, upcomingMaintenanceCount])
 
@@ -156,6 +204,16 @@ const Dashboard = () => {
       cost: entry.cost ?? entry.fuelCost ?? 0
     }))
   }, [data])
+
+  const heroMetrics = useMemo(() => {
+    const km = (performanceData || []).reduce((s, e) => s + (Number(e.mileage) || 0), 0)
+    const trips = (performanceData || []).reduce((s, e) => s + (Number(e.trips) || 0), 0)
+    return {
+      drivers: stats.totalDrivers,
+      km: Math.round(km).toLocaleString(),
+      trips,
+    }
+  }, [performanceData, stats.totalDrivers])
 
   if (loading) {
     return (
@@ -191,76 +249,247 @@ const Dashboard = () => {
     )
   }
 
+  const tfBtn = (id, label) => (
+    <button
+      key={id}
+      type="button"
+      onClick={() => setTimeframe(id)}
+      className={`px-4 py-2 rounded-full text-xs font-semibold transition-all border ${
+        timeframe === id
+          ? 'bg-ucu-gold-500/20 text-ucu-gold-200 border-ucu-gold-500/40 shadow-[0_0_20px_-6px_rgba(212,175,55,0.35)]'
+          : 'bg-slate-100/80 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border-slate-200/80 dark:border-slate-600/50 hover:border-ucu-gold-500/30'
+      }`}
+    >
+      {label}
+    </button>
+  )
+
   return (
-    <div className="space-y-8">
-      <header className="animate-fade-in-up">
-        <p className="text-xs font-bold text-ucu-blue-600 dark:text-ucu-blue-400 uppercase tracking-widest">Dashboard & Reports</p>
-        <h1 className="text-3xl md:text-4xl font-display font-bold mt-2 tracking-tight">
-          <span className="text-gradient-ucu">Operational Intelligence</span>
-        </h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-2 max-w-2xl">Live view of fleet utilization, trips, maintenance and compliance metrics.</p>
+    <div className="space-y-6 lg:space-y-8 animate-fade-in-up">
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            {new Date().toLocaleDateString(undefined, {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })}
+          </p>
+          <div className="flex flex-wrap gap-2 mt-3">
+            {tfBtn('today', 'Today')}
+            {tfBtn('week', 'This week')}
+            {tfBtn('month', 'This month')}
+          </div>
+        </div>
+        <Link
+          to="/booking"
+          className="fms-bench-cta inline-flex items-center justify-center gap-2 whitespace-nowrap no-underline self-start lg:self-center"
+        >
+          <Plus size={18} strokeWidth={2.5} />
+          New booking
+        </Link>
       </header>
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+      {/* Hero KPI row — benchmark circular icons */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="fms-shell-hero-card p-5 flex gap-4 items-start">
+          <div className="fms-shell-icon-ring shrink-0 bg-amber-500/20 dark:bg-amber-500/15 ring-1 ring-amber-500/35 dark:ring-amber-400/30">
+            <Users size={24} strokeWidth={2.5} className="text-amber-600 dark:text-amber-300 drop-shadow-[0_1px_2px_rgba(217,119,6,0.4)]" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+              Active drivers
+            </p>
+            <p className="text-3xl font-display font-bold text-slate-900 dark:text-white mt-1 tabular-nums">
+              {heroMetrics.drivers}
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-500 mt-2">Registered in fleet</p>
+          </div>
+        </div>
+        <div className="fms-shell-hero-card p-5 flex gap-4 items-start">
+          <div className="fms-shell-icon-ring shrink-0 bg-rose-500/20 dark:bg-rose-500/15 ring-1 ring-rose-500/35 dark:ring-rose-400/30">
+            <MapPin size={24} strokeWidth={2.5} className="text-rose-600 dark:text-rose-300 drop-shadow-[0_1px_2px_rgba(225,29,72,0.4)]" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+              KM (chart window)
+            </p>
+            <p className="text-3xl font-display font-bold text-slate-900 dark:text-white mt-1 tabular-nums">
+              {heroMetrics.km}
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-500 mt-2">Total mileage in series</p>
+          </div>
+        </div>
+        <div className="fms-shell-hero-card p-5 flex gap-4 items-start">
+          <div className="fms-shell-icon-ring shrink-0 bg-teal-500/20 dark:bg-teal-500/15 ring-1 ring-teal-500/35 dark:ring-teal-400/30">
+            <CheckCircle2 size={24} strokeWidth={2.5} className="text-teal-600 dark:text-teal-300 drop-shadow-[0_1px_2px_rgba(13,148,136,0.45)]" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+              Trips in series
+            </p>
+            <p className="text-3xl font-display font-bold text-slate-900 dark:text-white mt-1 tabular-nums">
+              {heroMetrics.trips}
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-500 mt-2">From performance data</p>
+          </div>
+        </div>
+      </section>
+
+      {/* KPI row — colored top accent */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-5">
         {statCards.map((stat, i) => {
           const Icon = stat.icon
+          const bar = accentBar[stat.accent] || accentBar.blue
+          const trendClass =
+            stat.trend === 'warn'
+              ? 'text-amber-600 dark:text-amber-400'
+              : stat.trend === 'neutral'
+                ? 'text-slate-500 dark:text-slate-400'
+                : 'text-emerald-600 dark:text-emerald-400'
           return (
             <div
               key={stat.title}
-              className="group bg-[var(--bg-surface)] dark:bg-slate-800/90 rounded-2xl border border-[var(--border-default)] p-6 flex flex-col gap-4 card-glow overflow-hidden relative"
-              style={{ animation: 'fadeInUp 0.5s ease-out forwards', animationDelay: `${i * 80}ms`, opacity: 0 }}
+              className="fms-bench-kpi group flex flex-col p-5 pt-0"
+              style={{ animation: 'fadeInUp 0.5s ease-out forwards', animationDelay: `${i * 70}ms`, opacity: 0 }}
             >
-              <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-blue-500/5 to-transparent rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-125 transition-transform duration-500" />
-              <div className="flex items-center justify-between relative">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">{stat.chip}</span>
-                <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${stat.bg} ${stat.color} transition-transform duration-300 group-hover:scale-110`}>
-                  <Icon size={22} strokeWidth={2} />
+              <div className={`fms-bench-kpi__accent ${bar} rounded-t-[inherit]`} />
+              <div className="flex items-start justify-between gap-3 pt-5">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    {stat.title}
+                  </p>
+                  <p className="text-2xl sm:text-3xl font-display font-bold text-slate-900 dark:text-white mt-1.5 tabular-nums tracking-tight">
+                    {stat.value}
+                  </p>
+                </div>
+                <div
+                  className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${stat.bg} ring-1 ring-inset ring-black/[0.06] dark:ring-white/10`}
+                >
+                  <Icon size={24} strokeWidth={2.5} className={stat.iconColor} />
                 </div>
               </div>
-              <div className="relative">
-                <p className="text-[var(--text-secondary)] text-sm font-medium">{stat.title}</p>
-                <p className="text-2xl md:text-3xl font-display font-bold text-[var(--text-primary)] mt-1 tracking-tight">{stat.value}</p>
-              </div>
-              <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                <TrendingUp size={14} /> {stat.change}
-              </div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 mt-3">
+                {stat.chip}
+              </p>
+              <p className={`text-xs font-medium mt-2 flex items-center gap-1.5 ${trendClass}`}>
+                {stat.trend !== 'warn' && stat.trend !== 'neutral' && (
+                  <TrendingUp size={15} strokeWidth={2.5} className="text-emerald-500 dark:text-emerald-400 shrink-0 drop-shadow-[0_1px_1px_rgba(16,185,129,0.35)]" />
+                )}
+                {stat.change}
+              </p>
             </div>
           )
         })}
       </section>
 
-      <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2 bg-white/95 dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-ucu p-6 card-glow backdrop-blur-sm">
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white">Fleet Performance</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Total mileage vs number of trips</p>
-            </div>
+      {/* Fleet status + alerts (benchmark middle row) */}
+      <section className="grid grid-cols-1 xl:grid-cols-3 gap-5 lg:gap-6">
+        <div className="xl:col-span-2 fms-bench-surface p-5 lg:p-6">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h2 className="text-lg font-display font-bold text-slate-900 dark:text-white">Fleet status</h2>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              Live
+            </span>
+          </div>
+          <div className="space-y-2.5 max-h-[min(28rem,52vh)] overflow-y-auto custom-scroll pr-1">
+            {(data.vehicleStatus || []).slice(0, 8).map((vehicle) => (
+              <div
+                key={vehicle.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 dark:border-slate-600/40 px-4 py-3 bg-slate-50/80 dark:bg-slate-900/40"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-10 w-10 rounded-lg bg-sky-500/15 dark:bg-sky-500/20 flex items-center justify-center ring-1 ring-sky-500/25 dark:ring-sky-400/25">
+                    <Car size={22} strokeWidth={2.5} className="text-sky-600 dark:text-sky-300 drop-shadow-[0_1px_1px_rgba(2,132,199,0.35)]" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900 dark:text-white truncate text-sm sm:text-base">
+                      {vehicle.registration}
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Fleet unit</p>
+                  </div>
+                </div>
+                <span
+                  className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold capitalize ${vehicleStatusBadgeClass(vehicle.status)}`}
+                >
+                  {vehicle.status}
+                </span>
+              </div>
+            ))}
+            {(!data.vehicleStatus || !data.vehicleStatus.length) && (
+              <p className="text-sm text-slate-500 dark:text-slate-400 py-6 text-center">No vehicles found.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="fms-bench-surface p-5 lg:p-6 flex flex-col min-h-0">
+          <h2 className="text-lg font-display font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+            <Bell size={20} strokeWidth={2.5} className="shrink-0 text-amber-600 dark:text-amber-300 drop-shadow-[0_1px_2px_rgba(217,119,6,0.45)]" />
+            Alerts & notices
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Operational feed</p>
+          <div className="space-y-3 flex-1 overflow-y-auto custom-scroll pr-0.5">
+            {!notifications.length && (
+              <p className="text-sm text-slate-500 dark:text-slate-400 py-4">No new alerts.</p>
+            )}
+            {notifications.map((notification) => (
+              <div
+                key={notification.id}
+                className={`fms-bench-alert p-3.5 bg-slate-50/90 dark:bg-slate-900/45 border border-slate-200/70 dark:border-slate-600/35 ${
+                  notification.severity === 'urgent'
+                    ? 'fms-bench-alert--urgent'
+                    : notification.severity === 'warning'
+                      ? 'fms-bench-alert--warning'
+                      : 'fms-bench-alert--info'
+                }`}
+              >
+                <p className="font-semibold text-slate-900 dark:text-white text-sm leading-snug">
+                  {notification.title}
+                </p>
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed">
+                  {notification.description}
+                </p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2 font-medium">
+                  {notification.timeAgo}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Charts */}
+      <section className="grid grid-cols-1 xl:grid-cols-3 gap-5 lg:gap-6">
+        <div className="xl:col-span-2 fms-bench-surface p-5 lg:p-6">
+          <div className="mb-4">
+            <h2 className="text-lg font-display font-bold text-slate-900 dark:text-white">Fleet performance</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Total mileage vs number of trips</p>
           </div>
           <ResponsiveContainer width="100%" height={320}>
             <BarChart data={performanceData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" className="dark:stroke-slate-600" />
-              <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: '#64748b' }} />
-              <YAxis yAxisId="left" tickLine={false} axisLine={false} tick={{ fill: '#64748b' }} />
-              <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tick={{ fill: '#64748b' }} />
-              <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }} />
-              <Legend />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartGrid} />
+              <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: chartTick }} />
+              <YAxis yAxisId="left" tickLine={false} axisLine={false} tick={{ fill: chartTick }} />
+              <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tick={{ fill: chartTick }} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Legend wrapperStyle={{ color: chartTick }} />
               <Bar yAxisId="left" dataKey="mileage" fill="#0066cc" radius={[8, 8, 0, 0]} name="Total Mileage (km)" />
               <Line yAxisId="right" type="monotone" dataKey="trips" stroke="#d4af37" strokeWidth={3} name="Number of Trips" />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-white/95 dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-ucu p-6 card-glow backdrop-blur-sm">
-          <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white mb-1">Fuel Consumption</h2>
+        <div className="fms-bench-surface p-5 lg:p-6">
+          <h2 className="text-lg font-display font-bold text-slate-900 dark:text-white">Fuel consumption</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Liters vs cost trend</p>
           <ResponsiveContainer width="100%" height={320}>
             <LineChart data={fuelTrendData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: '#64748b' }} />
-              <YAxis tickLine={false} axisLine={false} tick={{ fill: '#64748b' }} />
-              <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }} />
-              <Legend />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartGrid} />
+              <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: chartTick }} />
+              <YAxis tickLine={false} axisLine={false} tick={{ fill: chartTick }} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Legend wrapperStyle={{ color: chartTick }} />
               <Line type="monotone" dataKey="fuel" stroke="#0066cc" strokeWidth={3} name="Fuel (Liters)" />
               <Line type="monotone" dataKey="cost" stroke="#d4af37" strokeWidth={3} name="Fuel Cost (UGX x1000)" />
             </LineChart>
@@ -268,9 +497,10 @@ const Dashboard = () => {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-ucu p-6 card-glow">
-          <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white mb-4">Maintenance Cost Breakdown</h2>
+      {/* Maintenance + activity + summary */}
+      <section className="grid grid-cols-1 xl:grid-cols-3 gap-5 lg:gap-6">
+        <div className="fms-bench-surface p-5 lg:p-6">
+          <h2 className="text-lg font-display font-bold text-slate-900 dark:text-white mb-4">Maintenance cost breakdown</h2>
           {maintenancePie.length ? (
             <>
               <ResponsiveContainer width="100%" height={260}>
@@ -280,15 +510,20 @@ const Dashboard = () => {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip contentStyle={tooltipStyle} />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="grid grid-cols-2 gap-3 text-sm mt-2">
                 {maintenancePie.map((entry) => (
                   <div key={entry.name} className="flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-full ring-2 ring-white dark:ring-slate-700 shadow-sm" style={{ backgroundColor: entry.color }}></span>
-                    <p className="text-slate-600 dark:text-slate-300">{entry.name}</p>
-                    <p className="font-semibold text-slate-900 dark:text-white ml-auto">UGX {Number(entry.value).toLocaleString()}</p>
+                    <span
+                      className="h-3 w-3 rounded-full ring-2 ring-white dark:ring-slate-700 shadow-sm shrink-0"
+                      style={{ backgroundColor: entry.color }}
+                    />
+                    <p className="text-slate-600 dark:text-slate-300 truncate">{entry.name}</p>
+                    <p className="font-semibold text-slate-900 dark:text-white ml-auto tabular-nums">
+                      UGX {Number(entry.value).toLocaleString()}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -298,22 +533,25 @@ const Dashboard = () => {
           )}
         </div>
 
-        <div className="bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-ucu p-6 card-glow">
+        <div className="fms-bench-surface p-5 lg:p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white">Recent Activity Log</h2>
-            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Latest</span>
+            <h2 className="text-lg font-display font-bold text-slate-900 dark:text-white">Recent activity</h2>
+            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Latest</span>
           </div>
-          <div className="space-y-3">
-            {(data.activityLogs || []).slice(0, 5).map(log => (
-              <div key={log.id} className="flex items-center gap-3 border border-slate-200/80 dark:border-slate-600/50 rounded-xl p-3 bg-slate-50/50 dark:bg-slate-700/30">
-                <div className="h-10 w-10 rounded-xl bg-ucu-blue-500/10 dark:bg-ucu-blue-500/20 flex items-center justify-center text-ucu-blue-600 dark:text-ucu-blue-400">
-                  <CheckCircle2 size={20} strokeWidth={2} />
+          <div className="space-y-2.5">
+            {(data.activityLogs || []).slice(0, 5).map((log) => (
+              <div
+                key={log.id}
+                className="flex items-center gap-3 border border-slate-200/80 dark:border-slate-600/45 rounded-xl p-3 bg-slate-50/80 dark:bg-slate-900/35"
+              >
+                <div className="h-10 w-10 rounded-xl bg-blue-500/12 dark:bg-blue-500/20 flex items-center justify-center ring-1 ring-blue-500/25 dark:ring-blue-400/30">
+                  <CheckCircle2 size={22} strokeWidth={2.5} className="text-blue-600 dark:text-blue-300 drop-shadow-[0_1px_1px_rgba(37,99,235,0.4)]" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-slate-900 dark:text-white">{log.type}</p>
+                  <p className="font-semibold text-slate-900 dark:text-white text-sm">{log.type}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{log.description}</p>
                 </div>
-                <div className="text-xs text-slate-400 dark:text-slate-500 text-right shrink-0">
+                <div className="text-[11px] text-slate-400 dark:text-slate-500 text-right shrink-0">
                   {log.createdAt ? new Date(log.createdAt).toLocaleDateString() : ''}
                 </div>
               </div>
@@ -324,93 +562,43 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-ucu p-6 card-glow">
-          <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white mb-4">Vehicle Availability Status</h2>
-          <div className="space-y-3">
-            {(data.vehicleStatus || []).slice(0, 6).map(vehicle => (
-              <div key={vehicle.id} className="flex items-center justify-between border border-slate-200/80 dark:border-slate-600/50 rounded-xl px-4 py-3 bg-slate-50/50 dark:bg-slate-700/30">
-                <div>
-                  <p className="font-semibold text-slate-900 dark:text-white">{vehicle.registration}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Vehicle Registration</p>
-                </div>
-                <span className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
-                  vehicle.status === 'Available'
-                    ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400'
-                    : vehicle.status === 'In Maintenance'
-                    ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400'
-                    : vehicle.status === 'On-Trip' || vehicle.status === 'On Trip'
-                    ? 'bg-ucu-blue-100 dark:bg-ucu-blue-500/20 text-ucu-blue-700 dark:text-ucu-blue-400'
-                    : 'bg-slate-100 dark:bg-slate-600/30 text-slate-600 dark:text-slate-400'
-                }`}>
-                  {vehicle.status}
+        <div className="fms-bench-surface p-5 lg:p-6">
+          <h2 className="text-lg font-display font-bold text-slate-900 dark:text-white mb-4">Maintenance summary</h2>
+          <div className="flex flex-col gap-4">
+            <div className="rounded-2xl border border-slate-200/80 dark:border-slate-600/45 p-4 flex items-center gap-4 bg-ucu-gradient-soft dark:bg-ucu-blue-500/[0.07]">
+              <div className="h-12 w-12 rounded-xl bg-blue-500/12 dark:bg-blue-500/20 flex items-center justify-center ring-1 ring-blue-500/30 dark:ring-blue-400/35">
+                <Wrench size={24} strokeWidth={2.5} className="text-blue-600 dark:text-blue-300 drop-shadow-[0_1px_2px_rgba(37,99,235,0.4)]" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Total maintenance cost</p>
+                <p className="text-xl font-display font-bold text-slate-900 dark:text-white tabular-nums">
+                  UGX {Number(stats.maintenanceCost).toLocaleString()}
+                </p>
+              </div>
+              <div className="ml-auto text-[10px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                vs last month
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200/80 dark:border-slate-600/45 p-4">
+              <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-2">Scheduled services</p>
+              <div className="flex items-center gap-3 text-slate-900 dark:text-white font-semibold text-sm">
+                {upcomingMaintenanceCount} upcoming{' '}
+                <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <TrendingUp size={14} strokeWidth={2.5} className="text-emerald-500 dark:text-emerald-300 drop-shadow-[0_1px_1px_rgba(16,185,129,0.35)]" /> on track
                 </span>
               </div>
-            ))}
-            {(!data.vehicleStatus || !data.vehicleStatus.length) && (
-              <p className="text-sm text-slate-500 dark:text-slate-400">No vehicles found.</p>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-ucu p-6 card-glow">
-          <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-            <Bell size={20} className="text-ucu-blue-500" /> Notifications & Alerts
-          </h2>
-          <div className="space-y-4">
-            {!notifications.length && <p className="text-sm text-slate-500 dark:text-slate-400">No new alerts.</p>}
-            {notifications.map(notification => (
-              <div key={notification.id} className="flex gap-3 p-3 rounded-xl bg-slate-50/50 dark:bg-slate-700/30 border border-slate-200/60 dark:border-slate-600/40">
-                <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${
-                  notification.severity === 'urgent'
-                    ? 'bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400'
-                    : notification.severity === 'warning'
-                    ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400'
-                    : 'bg-ucu-blue-100 dark:bg-ucu-blue-500/20 text-ucu-blue-600 dark:text-ucu-blue-400'
-                }`}>
-                  {notification.severity === 'urgent' ? <AlertTriangle size={18} strokeWidth={2} /> : <Bell size={18} strokeWidth={2} />}
-                </div>
-                <div className="min-w-0">
-                  <p className="font-semibold text-slate-900 dark:text-white">{notification.title}</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">{notification.description}</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{notification.timeAgo}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-ucu p-6 card-glow">
-          <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white mb-4">Maintenance Summary</h2>
-          <div className="flex flex-col gap-4">
-            <div className="rounded-2xl border border-slate-200/80 dark:border-slate-600/50 p-4 flex items-center gap-4 bg-ucu-gradient-soft dark:bg-ucu-blue-500/5">
-              <div className="h-12 w-12 rounded-xl bg-ucu-blue-500/10 dark:bg-ucu-blue-500/20 flex items-center justify-center text-ucu-blue-600 dark:text-ucu-blue-400">
-                <Wrench size={22} strokeWidth={2} />
-              </div>
-              <div>
-                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Total Maintenance Cost</p>
-                <p className="text-2xl font-display font-bold text-slate-900 dark:text-white">UGX {Number(stats.maintenanceCost).toLocaleString()}</p>
-              </div>
-              <div className="ml-auto text-xs font-bold text-emerald-600 dark:text-emerald-400">-12% vs last month</div>
-            </div>
-            <div className="rounded-2xl border border-slate-200/80 dark:border-slate-600/50 p-4">
-              <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-2">Scheduled Services</p>
-              <div className="flex items-center gap-3 text-slate-900 dark:text-white font-semibold">
-                {upcomingMaintenanceCount} upcoming <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><TrendingUp size={12} /> on track</span>
-              </div>
               <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
-                <div className="border border-slate-200/80 dark:border-slate-600/50 rounded-xl p-3 text-center bg-slate-50/50 dark:bg-slate-700/30">
-                  <p className="text-2xl font-display font-bold text-slate-900 dark:text-white">{routineCount}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">Routine</p>
+                <div className="border border-slate-200/80 dark:border-slate-600/45 rounded-xl p-3 text-center bg-slate-50/80 dark:bg-slate-900/35">
+                  <p className="text-xl font-display font-bold text-slate-900 dark:text-white">{routineCount}</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 font-medium uppercase tracking-wide">Routine</p>
                 </div>
-                <div className="border border-slate-200/80 dark:border-slate-600/50 rounded-xl p-3 text-center bg-slate-50/50 dark:bg-slate-700/30">
-                  <p className="text-2xl font-display font-bold text-slate-900 dark:text-white">{repairsCount}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">Repairs</p>
+                <div className="border border-slate-200/80 dark:border-slate-600/45 rounded-xl p-3 text-center bg-slate-50/80 dark:bg-slate-900/35">
+                  <p className="text-xl font-display font-bold text-slate-900 dark:text-white">{repairsCount}</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 font-medium uppercase tracking-wide">Repairs</p>
                 </div>
-                <div className="border border-slate-200/80 dark:border-slate-600/50 rounded-xl p-3 text-center bg-slate-50/50 dark:bg-slate-700/30">
-                  <p className="text-2xl font-display font-bold text-slate-900 dark:text-white">{inspectionsCount}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">Inspection</p>
+                <div className="border border-slate-200/80 dark:border-slate-600/45 rounded-xl p-3 text-center bg-slate-50/80 dark:bg-slate-900/35">
+                  <p className="text-xl font-display font-bold text-slate-900 dark:text-white">{inspectionsCount}</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 font-medium uppercase tracking-wide">Inspection</p>
                 </div>
               </div>
             </div>

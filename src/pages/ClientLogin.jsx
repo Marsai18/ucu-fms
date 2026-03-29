@@ -135,9 +135,6 @@ const ClientLogin = () => {
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
-          <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-4">
-            Demo: client@ucu.ac.ug / client123
-          </p>
         </form>
         
         <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">

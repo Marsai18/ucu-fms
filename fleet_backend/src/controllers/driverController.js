@@ -1,4 +1,5 @@
 import db from '../utils/db.js';
+import { adminRecipientFromTripBooking } from '../utils/notificationTargets.js';
 
 /** Resolve driverId from JWT or by looking up user (for tokens issued before driverId was in JWT) */
 async function resolveDriverId(req) {
@@ -277,7 +278,8 @@ export const acceptTrip = async (req, res, next) => {
       message: `Driver accepted trip ${trip.tripCode || tripId}`,
       tripId,
       recipientRole: 'admin',
-      driverId
+      driverId,
+      ...(await adminRecipientFromTripBooking(trip))
     });
 
     res.json(updated);
@@ -315,7 +317,8 @@ export const rejectTrip = async (req, res, next) => {
       message: `Driver declined trip ${trip.tripCode || tripId}. Reason: ${reason.trim()}`,
       tripId,
       recipientRole: 'admin',
-      driverId
+      driverId,
+      ...(await adminRecipientFromTripBooking(trip))
     });
 
     res.json(updated);

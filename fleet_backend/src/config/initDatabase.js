@@ -53,10 +53,10 @@ async function initDatabase() {
     
     await connection.query(`
       INSERT IGNORE INTO users (username, email, password, role, created_at) 
-      VALUES ('masai', 'masai@ucu.ac.ug', ?, 'admin', NOW())
+      VALUES ('masai', 'masai.absalom@ucu.ac.ug', ?, 'admin', NOW())
     `, [hashedPassword]);
     
-    console.log('Default admin user created (username: masai, password: masai123)');
+    console.log('Default admin user created (username: masai, email: masai.absalom@ucu.ac.ug, password: masai123)');
     
   } catch (error) {
     console.error('Error initializing database:', error);

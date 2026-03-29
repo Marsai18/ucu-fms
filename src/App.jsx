@@ -36,6 +36,7 @@ const DriverRoutes = lazy(() => import('./pages/DriverRoutes'))
 const DriverIncidentReport = lazy(() => import('./pages/DriverIncidentReport'))
 const HODDashboard = lazy(() => import('./pages/HODDashboard'))
 const HODRequests = lazy(() => import('./pages/HODRequests'))
+const UserManagement = lazy(() => import('./pages/UserManagement'))
 
 const PageFallback = () => (
   <div className="min-h-[320px] flex items-center justify-center">
@@ -396,6 +397,16 @@ function App() {
               <PrivateRoute adminOnly>
                 <Layout>
                   <PerformanceMonitoring />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/users"
+            element={
+              <PrivateRoute adminOnly>
+                <Layout>
+                  <UserManagement />
                 </Layout>
               </PrivateRoute>
             }

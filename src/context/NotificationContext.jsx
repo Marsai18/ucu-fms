@@ -16,14 +16,14 @@ export const NotificationProvider = ({ children }) => {
       if (!isBackground) setLoading(true)
       const data = await api.getNotifications()
       const newList = Array.isArray(data) ? data : []
-      setNotifications(prev => {
-        if (prev.length !== newList.length) return newList
-        const changed = prev.some((p, i) => {
-          const n = newList[i]
-          return !n || String(p.id) !== String(n.id) || !!p.read !== !!n.read
-        })
-        return changed ? newList : prev
+      const sorted = [...newList].sort((a, b) => {
+        const tb = new Date(b.createdAt || 0).getTime()
+        const ta = new Date(a.createdAt || 0).getTime()
+        const nb = Number.isNaN(tb) ? 0 : tb
+        const na = Number.isNaN(ta) ? 0 : ta
+        return nb - na
       })
+      setNotifications(sorted)
     } catch (err) {
       if (!isBackground) setNotifications([])
     } finally {
@@ -64,7 +64,7 @@ export const NotificationProvider = ({ children }) => {
     fetchNotifications,
     markAsRead,
     markAllAsRead
-  }), [notifications, unreadCount, loading, fetchNotifications])
+  }), [notifications, unreadCount, loading, fetchNotifications, markAsRead, markAllAsRead])
 
   return (
     <NotificationContext.Provider value={value}>
