@@ -1,5 +1,4 @@
 import db from '../utils/db.js';
-import { readData } from '../config/database.js';
 import { adminRecipientFromTripBooking } from '../utils/notificationTargets.js';
 
 // Get all trips
@@ -34,7 +33,7 @@ export const getTripHistory = async (req, res, next) => {
     }
     let rawData;
     try {
-      rawData = await readData();
+      rawData = await db.getLegacyDataset();
     } catch {
       rawData = { users: [], vehicles: [], drivers: [], bookings: [], fuelLogs: [] };
     }

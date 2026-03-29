@@ -1,10 +1,8 @@
 import mysql from 'mysql2/promise';
-import dotenv from 'dotenv';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-
-dotenv.config();
+import './loadEnv.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,6 +36,10 @@ if (USE_MYSQL) {
     })
     .catch(error => {
       console.warn('⚠️ MySQL connection failed, falling back to JSON storage:', error.message);
+      if (error.code === 'ER_ACCESS_DENIED_ERROR') {
+        console.warn('   → Fix: set DB_PASSWORD in .env to match MySQL, or run: ALTER USER ... IDENTIFIED BY \'yourpassword\';');
+        console.warn('   → See fleet_backend/MYSQL_SETUP_GUIDE.md');
+      }
       console.log('Using JSON file storage instead...');
       pool = null;
     });

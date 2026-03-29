@@ -9,7 +9,9 @@
     "dev": "node --watch server.js",
     "init-db": "node database/initDatabase.js",
     "fix-db": "node fix-mysql-access.js",
-    "seed": "node scripts/seed-realistic-data.js"
+    "seed": "node scripts/seed-realistic-data.js",
+    "db:import": "node scripts/import-json-to-mysql.js",
+    "db:setup": "node scripts/setup-mysql.js"
   },
   "keywords": [
     "fleet",

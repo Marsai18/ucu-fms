@@ -1,7 +1,4 @@
-import database from '../config/database.js';
-import { readData, writeData, getNextId } from '../config/database.js';
-
-const { pool } = database || {};
+import pool, { readData, writeData, getNextId } from '../config/database.js';
 
 /** Detect storage type from raw password string (bcrypt vs plain). */
 const storageFromPassword = (raw) => {
@@ -40,7 +37,7 @@ export const getUsers = async (req, res, next) => {
   try {
     if (pool && typeof pool.query === 'function') {
       const [rows] = await pool.query(
-        `SELECT id, username, email, name, role, phone, status, created_at, updated_at,
+        `SELECT id, username, email, name, role, phone, status, driver_id, created_at, updated_at,
          CASE WHEN password LIKE '$2%' THEN 'hashed' ELSE 'plaintext' END AS pwd_storage
          FROM users ORDER BY id ASC`
       );
@@ -74,7 +71,7 @@ export const getUserById = async (req, res, next) => {
     const id = String(req.params.id);
     if (pool && typeof pool.query === 'function') {
       const [rows] = await pool.query(
-        `SELECT id, username, email, name, role, phone, status, created_at, updated_at,
+        `SELECT id, username, email, name, role, phone, status, driver_id, created_at, updated_at,
          CASE WHEN password LIKE '$2%' THEN 'hashed' ELSE 'plaintext' END AS pwd_storage
          FROM users WHERE id = ?`,
         [id]
@@ -117,13 +114,25 @@ export const createUser = async (req, res, next) => {
       );
       if (dup.length) return res.status(409).json({ error: 'Username or email already exists' });
 
+      const driverIdVal =
+        r === 'driver' && driverId != null && String(driverId).trim() !== ''
+          ? Number(driverId)
+          : null;
       const [result] = await pool.query(
-        `INSERT INTO users (username, email, password, name, role, phone, status)
-         VALUES (?, ?, ?, ?, ?, ?, 'active')`,
-        [username.trim(), email.trim(), plainPassword, (name || username).trim(), r, phone?.trim() || null]
+        `INSERT INTO users (username, email, password, name, role, phone, status, driver_id)
+         VALUES (?, ?, ?, ?, ?, ?, 'active', ?)`,
+        [
+          username.trim(),
+          email.trim(),
+          plainPassword,
+          (name || username).trim(),
+          r,
+          phone?.trim() || null,
+          driverIdVal,
+        ]
       );
       const [rows] = await pool.query(
-        `SELECT id, username, email, name, role, phone, status, created_at, updated_at FROM users WHERE id = ?`,
+        `SELECT id, username, email, name, role, phone, status, driver_id, created_at, updated_at FROM users WHERE id = ?`,
         [result.insertId]
       );
       return res.status(201).json({ ...mapMysqlUser(rows[0]), passwordStorage: 'plaintext' });
@@ -202,9 +211,13 @@ export const updateUser = async (req, res, next) => {
         fields.push('phone = ?');
         vals.push(phone?.trim() || null);
       }
+      if (driverId !== undefined) {
+        fields.push('driver_id = ?');
+        vals.push(driverId === null || driverId === '' ? null : Number(driverId));
+      }
       if (fields.length === 0) {
         const [rows] = await pool.query(
-          `SELECT id, username, email, name, role, phone, status, created_at, updated_at FROM users WHERE id = ?`,
+          `SELECT id, username, email, name, role, phone, status, driver_id, created_at, updated_at FROM users WHERE id = ?`,
           [id]
         );
         return res.json(mapMysqlUser(rows[0]));
@@ -212,7 +225,7 @@ export const updateUser = async (req, res, next) => {
       vals.push(id);
       await pool.query(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, vals);
       const [rows] = await pool.query(
-        `SELECT id, username, email, name, role, phone, status, created_at, updated_at FROM users WHERE id = ?`,
+        `SELECT id, username, email, name, role, phone, status, driver_id, created_at, updated_at FROM users WHERE id = ?`,
         [id]
       );
       return res.json(mapMysqlUser(rows[0]));

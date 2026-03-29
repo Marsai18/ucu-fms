@@ -1,7 +1,7 @@
+import './src/config/loadEnv.js';
 import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
-import dotenv from 'dotenv';
 import { errorHandler, notFoundHandler } from './src/middleware/errorHandler.js';
 
 // Prevent process crash on unhandled errors
@@ -28,26 +28,57 @@ import driverPortalRoutes from './src/routes/driver.js';
 import notificationRoutes from './src/routes/notifications.js';
 import userRoutes from './src/routes/users.js';
 
-dotenv.config();
-
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-const allowedOrigins = new Set([
-  'http://localhost:3000',
-  'http://localhost:5173',
-  'http://127.0.0.1:3000',
-  'http://127.0.0.1:5173',
-  process.env.FRONTEND_URL
-].filter(Boolean))
-app.use(cors({
-  origin: (origin, cb) => {
-    if (!origin || allowedOrigins.has(origin)) cb(null, origin || 'http://localhost:3000')
-    else cb(null, false)
-  },
-  credentials: true
-}));
+const allowedOrigins = new Set(
+  [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:5173',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001',
+    'http://127.0.0.1:5173',
+    process.env.FRONTEND_URL,
+  ].filter(Boolean)
+);
+
+/** Vite may use 3001+ when the default port is taken; allow any local HTTP origin in non-production. */
+function isLocalHttpOrigin(origin) {
+  try {
+    const u = new URL(origin);
+    return (
+      u.protocol === 'http:' &&
+      (u.hostname === 'localhost' || u.hostname === '127.0.0.1')
+    );
+  } catch {
+    return false;
+  }
+}
+
+const isProd = process.env.NODE_ENV === 'production';
+
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      if (!origin) {
+        cb(null, true);
+        return;
+      }
+      if (allowedOrigins.has(origin)) {
+        cb(null, origin);
+        return;
+      }
+      if (!isProd && isLocalHttpOrigin(origin)) {
+        cb(null, origin);
+        return;
+      }
+      cb(null, false);
+    },
+    credentials: true,
+  })
+);
 app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -77,7 +108,7 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // Start server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`🔗 API Base URL: http://localhost:${PORT}/api`);
@@ -90,6 +121,17 @@ app.listen(PORT, () => {
   setInterval(() => {
     checkAndCreateMaintenanceNotifications().catch(() => {});
   }, MAINTENANCE_CHECK_MS);
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(
+      `\n❌ Port ${PORT} is already in use (another API instance or app is running).\n` +
+        `   Stop the other process, or set PORT=5001 in fleet_backend/.env (and VITE_API_URL=http://localhost:5001/api in root .env).\n`
+    );
+    process.exit(1);
+  }
+  throw err;
 });
 
 

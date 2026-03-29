@@ -1,13 +1,11 @@
 import mysql from 'mysql2/promise';
-import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import './src/config/loadEnv.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-dotenv.config();
 
 async function testConnection(password = '') {
   try {

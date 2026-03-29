@@ -1,9 +1,6 @@
-import database from '../config/database.js';
-import { readData } from '../config/database.js';
+import pool, { readData } from '../config/database.js';
 import bcrypt from 'bcrypt';
 import { generateToken } from '../utils/jwt.js';
-
-const { pool } = database || {};
 
 export const login = async (req, res, next) => {
   try {
@@ -27,6 +24,9 @@ export const login = async (req, res, next) => {
       }
 
       user = users[0];
+      if (user.driver_id != null && user.driverId == null) {
+        user.driverId = String(user.driver_id);
+      }
 
       const st = (user.status || 'active').toLowerCase();
       if (st === 'suspended' || st === 'inactive') {
@@ -82,7 +82,24 @@ export const login = async (req, res, next) => {
     }
     const token = generateToken(tokenPayload);
 
-    const { password: _, ...userWithoutPassword } = user;
+    let userWithoutPassword;
+    if (pool && typeof pool.query === 'function') {
+      userWithoutPassword = {
+        id: String(user.id),
+        username: user.username,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        phone: user.phone ?? null,
+        status: user.status,
+        createdAt: user.created_at,
+        updatedAt: user.updated_at,
+        ...(user.driver_id != null ? { driverId: String(user.driver_id) } : {}),
+      };
+    } else {
+      const { password: _p, ...rest } = user;
+      userWithoutPassword = rest;
+    }
 
     res.json({
       ok: true,
@@ -126,7 +143,7 @@ export const getCurrentUser = async (req, res, next) => {
 
     if (pool && typeof pool.query === 'function') {
       const [users] = await pool.query(
-        'SELECT id, username, email, name, role, status, created_at, updated_at FROM users WHERE id = ?',
+        'SELECT id, username, email, name, role, phone, status, driver_id, created_at, updated_at FROM users WHERE id = ?',
         [req.user.id]
       );
 
@@ -134,7 +151,19 @@ export const getCurrentUser = async (req, res, next) => {
         return res.status(404).json({ error: 'User not found' });
       }
 
-      user = users[0];
+      const row = users[0];
+      user = {
+        id: String(row.id),
+        username: row.username,
+        email: row.email,
+        name: row.name,
+        role: row.role,
+        phone: row.phone ?? null,
+        status: row.status,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        ...(row.driver_id != null ? { driverId: String(row.driver_id) } : {}),
+      };
     } else {
       const data = await readData();
       user = data.users.find(u => u.id === String(req.user.id));

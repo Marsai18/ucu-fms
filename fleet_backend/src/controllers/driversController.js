@@ -1,5 +1,4 @@
 import db from '../utils/db.js';
-import { readData, writeData } from '../config/database.js';
 
 // Admin CRUD for drivers
 
@@ -59,8 +58,7 @@ export const deleteDriver = async (req, res, next) => {
 
 export const getTrainingSessions = async (req, res, next) => {
   try {
-    const data = await readData();
-    const sessions = data.trainingSessions || [];
+    const sessions = await db.getTrainingSessions();
     res.json(sessions);
   } catch (error) {
     next(error);
@@ -69,16 +67,7 @@ export const getTrainingSessions = async (req, res, next) => {
 
 export const createTrainingSession = async (req, res, next) => {
   try {
-    const data = await readData();
-    const sessions = data.trainingSessions || [];
-    const newSession = {
-      id: String(sessions.length + 1),
-      ...req.body,
-      createdAt: new Date().toISOString()
-    };
-    sessions.push(newSession);
-    data.trainingSessions = sessions;
-    await writeData(data);
+    const newSession = await db.createTrainingSession(req.body);
     res.status(201).json(newSession);
   } catch (error) {
     next(error);

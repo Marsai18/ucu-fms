@@ -83,7 +83,7 @@ class API {
       // Handle network errors
       if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
         throw new Error(
-          'Cannot connect to the API. Check that the backend is running and VITE_API_URL is set correctly for this environment.'
+          `Cannot connect to the API at ${API_URL}. Start the backend (fleet_backend: npm start), ensure its port matches this URL, then restart the Vite dev server after changing .env.`
         );
       }
       console.error('API Error:', error);
