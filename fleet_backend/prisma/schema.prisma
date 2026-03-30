@@ -413,3 +413,16 @@ model AssignmentDraft {
 
   @@map("assignment_drafts")
 }
+
+model GatePass {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  tripId    String   @map("trip_id")
+  bookingId String?  @map("booking_id")
+  driverId  String   @map("driver_id")
+  data      Json
+  usedAt    DateTime? @map("used_at")
+  issuedAt  DateTime  @default(now()) @map("issued_at")
+
+  @@map("gate_passes")
+}
