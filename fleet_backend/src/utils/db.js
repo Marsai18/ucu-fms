@@ -437,6 +437,7 @@ function _mapVehicleIn(data) {
   // Normalize status enum values
   if (out.operationalStatus === 'In Use') out.operationalStatus = 'In_Use'
   if (out.operationalStatus === 'On Trip') out.operationalStatus = 'On_Trip'
+  if (out.operationalStatus === 'Active') out.operationalStatus = 'Available'
   return out
 }
 
@@ -467,8 +468,8 @@ function _mapBookingIn(data) {
     vehicleId: 'vehicleId', vehicle_id: 'vehicleId',
     driverId: 'driverId', driver_id: 'driverId',
     purpose: 'purpose', destination: 'destination', origin: 'origin',
-    startDate: 'startDate', start_date: 'startDate',
-    endDate: 'endDate', end_date: 'endDate',
+    startDate: 'startDate', start_date: 'startDate', startDateTime: 'startDate',
+    endDate: 'endDate', end_date: 'endDate', endDateTime: 'endDate',
     passengers: 'passengers',
     additionalNotes: 'additionalNotes', additional_notes: 'additionalNotes',
     status: 'status',
