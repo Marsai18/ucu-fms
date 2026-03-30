@@ -176,7 +176,10 @@ const ClientDashboard = () => {
         purpose: formData.purpose,
         destination: formData.destination,
         department: formData.department || null,
+        // Send both field variants so hosted Prisma and local backend stay compatible.
+        startDate: formData.startDateTime,
         startDateTime: formData.startDateTime,
+        endDate: formData.endDateTime,
         endDateTime: formData.endDateTime,
         status: 'Pending'
       })

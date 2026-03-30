@@ -172,7 +172,10 @@ const ClientBookingRequest = () => {
         destination: formData.destination,
         department: formData.department || null,
         waypoints: (formData.waypoints || '').trim() || null,
+        // Send both field variants so hosted Prisma and local backend stay compatible.
+        startDate: formData.startDateTime,
         startDateTime: formData.startDateTime,
+        endDate: formData.endDateTime,
         endDateTime: formData.endDateTime,
         status: 'Pending'
       })
