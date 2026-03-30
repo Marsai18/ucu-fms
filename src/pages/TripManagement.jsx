@@ -4,11 +4,13 @@ import toast from 'react-hot-toast'
 import api from '../utils/api'
 
 const statusStyles = {
+  'In_Progress': 'bg-ucu-blue-100 dark:bg-ucu-blue-500/20 text-ucu-blue-700 dark:text-ucu-blue-400',
   'In Progress': 'bg-ucu-blue-100 dark:bg-ucu-blue-500/20 text-ucu-blue-700 dark:text-ucu-blue-400',
   Pending: 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400',
   Completed: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400',
   Cancelled: 'bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-400'
 }
+const displayStatus = (s) => s === 'In_Progress' ? 'In Progress' : s
 
 const TripManagement = () => {
   const [trips, setTrips] = useState([])
@@ -46,7 +48,7 @@ const TripManagement = () => {
   }, [fetchTrips])
 
   // Live refresh when there are in-progress trips (every 15 seconds)
-  const hasInProgress = useMemo(() => trips.some(t => (t.status || '').toLowerCase() === 'in progress'), [trips])
+  const hasInProgress = useMemo(() => trips.some(t => (t.status === 'In_Progress' || t.status === 'In Progress')), [trips])
   useEffect(() => {
     if (!hasInProgress) return
     const interval = setInterval(fetchTrips, 15000)
@@ -87,7 +89,7 @@ const TripManagement = () => {
     if (!selectedTrip) return
     handleTripUpdate(
       selectedTrip.id,
-      { status: 'In Progress', departureTime: new Date().toISOString() },
+      { status: 'In_Progress', actualDeparture: new Date().toISOString() },
       'Trip started'
     )
   }
@@ -100,7 +102,7 @@ const TripManagement = () => {
     }
     handleTripUpdate(
       selectedTrip.id,
-      { status: 'Completed', arrivalTime: new Date().toISOString(), endOdometer: Number(endOdometer), driverNotes: notes },
+      { status: 'Completed', actualArrival: new Date().toISOString(), endOdometer: Number(endOdometer), driverNotes: notes },
       'Trip completed'
     )
   }
@@ -139,14 +141,14 @@ const TripManagement = () => {
 
   const handleQuickAction = (trip, action) => {
     if (action === 'start') {
-      handleTripUpdate(trip.id, { status: 'In Progress', departureTime: new Date().toISOString() }, `Trip ${trip.tripCode || trip.id} started`)
+      handleTripUpdate(trip.id, { status: 'In_Progress', actualDeparture: new Date().toISOString() }, `Trip ${trip.tripCode || trip.id} started`)
     }
     if (action === 'complete') {
       if (!trip.endOdometer) {
         toast.error('Update end odometer before completing the trip')
         return
       }
-      handleTripUpdate(trip.id, { status: 'Completed', arrivalTime: new Date().toISOString() }, `Trip ${trip.tripCode || trip.id} completed`)
+      handleTripUpdate(trip.id, { status: 'Completed', actualArrival: new Date().toISOString() }, `Trip ${trip.tripCode || trip.id} completed`)
     }
     if (action === 'cancel') {
       handleTripUpdate(trip.id, { status: 'Cancelled' }, `Trip ${trip.tripCode || trip.id} cancelled`)
@@ -239,12 +241,12 @@ const TripManagement = () => {
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="font-semibold text-slate-900 dark:text-white">{trip.tripCode || trip.id}</h3>
                     <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${statusClass}`}>
-                      {trip.status}
+                      {displayStatus(trip.status)}
                     </span>
                   </div>
-                  {trip.driverResponse === 'declined' && trip.declineReason && (
-                    <p className="text-xs text-rose-600 dark:text-rose-400 mb-1 line-clamp-2" title={trip.declineReason}>
-                      Declined: {trip.declineReason}
+                  {trip.driverNotes && trip.driverNotes.startsWith('Declined:') && (
+                    <p className="text-xs text-rose-600 dark:text-rose-400 mb-1 line-clamp-2" title={trip.driverNotes}>
+                      {trip.driverNotes}
                     </p>
                   )}
                   <div className="flex items-center text-sm text-slate-500 dark:text-slate-400 gap-2 mb-1">
@@ -267,7 +269,7 @@ const TripManagement = () => {
                         Start
                       </button>
                     )}
-                    {trip.status === 'In Progress' && (
+                    {trip.status === 'In_Progress' && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
@@ -312,7 +314,7 @@ const TripManagement = () => {
                   <p className="text-gray-500">{selectedTrip.destination || selectedTrip.dropoffLocation} • {selectedTrip.driverName || selectedTrip.driverId}</p>
                 </div>
                 <span className={`px-3 py-1 rounded-full text-sm font-medium border ${statusStyles[selectedTrip.status] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
-                  {selectedTrip.status}
+                  {displayStatus(selectedTrip.status)}
                 </span>
               </div>
 
@@ -326,7 +328,7 @@ const TripManagement = () => {
                 </button>
                 <button
                   onClick={handleCompleteTrip}
-                  disabled={selectedTrip.status !== 'In Progress' || saving}
+                  disabled={selectedTrip.status !== 'In_Progress' || saving}
                   className="px-4 py-2 rounded-lg text-sm font-semibold bg-ucu-gold-100 dark:bg-ucu-gold-500/20 text-ucu-gold-700 dark:text-ucu-gold-400 hover:bg-ucu-gold-200 dark:hover:bg-ucu-gold-500/30 disabled:opacity-40 transition-all"
                 >
                   Complete Trip
@@ -371,7 +373,7 @@ const TripManagement = () => {
                     />
                     <button
                       onClick={handleEndOdometerUpdate}
-                      disabled={selectedTrip.status !== 'In Progress' || saving}
+                      disabled={selectedTrip.status !== 'In_Progress' || saving}
                       className="mt-3 w-full rounded-lg bg-ucu-gradient text-white py-2 text-sm font-semibold shadow-ucu hover:shadow-ucu-lg disabled:opacity-40 transition-all"
                     >
                       Update
@@ -398,7 +400,7 @@ const TripManagement = () => {
                       <Clock size={16} className="text-primary-500" />
                       Arrival Time
                     </p>
-                    <p className="font-semibold text-gray-900">{formatDate(selectedTrip.arrivalTime)}</p>
+                    <p className="font-semibold text-gray-900">{formatDate(selectedTrip.actualArrival)}</p>
                   </div>
                   <div className="rounded-xl border border-gray-200 p-4">
                     <p className="text-gray-500 flex items-center gap-2 mb-1">
@@ -437,59 +439,24 @@ const TripManagement = () => {
 
               <section className="mb-8">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Driver Feedback</h3>
-                {selectedTrip.driverResponse === 'declined' && selectedTrip.declineReason && (
+                {selectedTrip.driverNotes && selectedTrip.driverNotes.startsWith('Declined:') ? (
                   <div className="rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/20 p-4 flex items-start gap-3">
                     <AlertCircle className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" size={20} />
                     <div>
                       <p className="font-semibold text-rose-800 dark:text-rose-400">Driver declined this trip</p>
-                      <p className="text-sm text-rose-700 dark:text-rose-300 mt-1">{selectedTrip.declineReason}</p>
+                      <p className="text-sm text-rose-700 dark:text-rose-300 mt-1">{selectedTrip.driverNotes.replace('Declined: ', '')}</p>
                     </div>
                   </div>
-                )}
-                {selectedTrip.driverResponse === 'accepted' && (
-                  <div>
-                    <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">Driver accepted this trip</p>
-                    {selectedTrip.assignmentFeedback && (
-                      <div className="mt-3 p-3 rounded-lg bg-ucu-blue-50 dark:bg-ucu-blue-900/20 border border-ucu-blue-200 dark:border-ucu-blue-700">
-                        <p className="text-xs font-semibold text-ucu-blue-700 dark:text-ucu-blue-400">Driver feedback on assignment</p>
-                        <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">{selectedTrip.assignmentFeedback}</p>
-                      </div>
-                    )}
+                ) : selectedTrip.driverNotes ? (
+                  <div className="mt-3 p-3 rounded-lg bg-ucu-blue-50 dark:bg-ucu-blue-900/20 border border-ucu-blue-200 dark:border-ucu-blue-700">
+                    <p className="text-xs font-semibold text-ucu-blue-700 dark:text-ucu-blue-400">Driver notes</p>
+                    <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">{selectedTrip.driverNotes}</p>
                   </div>
-                )}
-                {!selectedTrip.driverResponse && selectedTrip.status === 'Pending' && (
+                ) : selectedTrip.status === 'Pending' ? (
                   <p className="text-sm text-amber-600 dark:text-amber-400">Awaiting driver response</p>
-                )}
+                ) : null}
               </section>
 
-              {(selectedTrip.tripReport || selectedTrip.tripReportFile) && (
-                <section className="mb-8">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <FileText size={20} /> Trip Report (from driver)
-                  </h3>
-                  <div className="rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/30 p-4">
-                    {selectedTrip.tripReport && (
-                      <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap mb-4">{selectedTrip.tripReport}</p>
-                    )}
-                    {selectedTrip.tripReportFile && (
-                      <div className="flex items-center gap-2">
-                        <a
-                          href={`data:application/octet-stream;base64,${selectedTrip.tripReportFile}`}
-                          download={selectedTrip.tripReportFileName || 'trip-report.pdf'}
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-ucu-blue-100 dark:bg-ucu-blue-500/20 text-ucu-blue-700 dark:text-ucu-blue-400 font-semibold text-sm hover:bg-ucu-blue-200 dark:hover:bg-ucu-blue-500/30"
-                        >
-                          <Download size={16} /> Download {selectedTrip.tripReportFileName || 'report'}
-                        </a>
-                      </div>
-                    )}
-                    {selectedTrip.tripReportSubmittedAt && (
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                        Submitted {formatDate(selectedTrip.tripReportSubmittedAt)}
-                      </p>
-                    )}
-                  </div>
-                </section>
-              )}
             </>
           ) : (
             <div className="h-full flex items-center justify-center text-gray-500">
@@ -579,7 +546,7 @@ const TripManagement = () => {
                     </td>
                     <td className="py-3 px-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusStyles[trip.status] || 'bg-slate-100 dark:bg-slate-600/30 text-slate-600 dark:text-slate-400'}`}>
-                        {trip.status}
+                        {displayStatus(trip.status)}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
@@ -689,7 +656,7 @@ const TripManagement = () => {
                       </div>
                       <div>
                         <p className="text-xs text-slate-500 dark:text-slate-400">Arrival</p>
-                        <p className="font-medium text-slate-900 dark:text-white">{formatDate(historyData.arrivalTime)}</p>
+                        <p className="font-medium text-slate-900 dark:text-white">{formatDate(historyData.actualArrival)}</p>
                       </div>
                       <div>
                         <p className="text-xs text-slate-500 dark:text-slate-400">Origin</p>
@@ -727,27 +694,13 @@ const TripManagement = () => {
                   </section>
                   <section>
                     <h4 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                      <FileText size={16} /> Driver Trip Report
+                      <FileText size={16} /> Driver Notes
                     </h4>
                     <div className="rounded-xl border border-slate-200 dark:border-slate-600 p-4 bg-slate-50/50 dark:bg-slate-700/30">
-                      {historyData.tripReport ? (
-                        <div>
-                          <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{historyData.tripReport}</p>
-                          {historyData.tripReportFile && (
-                            <a
-                              href={`data:application/octet-stream;base64,${historyData.tripReportFile}`}
-                              download={historyData.tripReportFileName || 'trip-report.pdf'}
-                              className="inline-flex items-center gap-2 mt-3 px-3 py-1.5 rounded-lg bg-ucu-blue-100 dark:bg-ucu-blue-500/20 text-ucu-blue-700 dark:text-ucu-blue-400 font-semibold text-sm"
-                            >
-                              <Download size={14} /> Download {historyData.tripReportFileName || 'report'}
-                            </a>
-                          )}
-                          {historyData.tripReportSubmittedAt && (
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">Submitted {formatDate(historyData.tripReportSubmittedAt)}</p>
-                          )}
-                        </div>
+                      {historyData.driverNotes ? (
+                        <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{historyData.driverNotes}</p>
                       ) : (
-                        <p className="text-slate-500 dark:text-slate-400">No trip report submitted</p>
+                        <p className="text-slate-500 dark:text-slate-400">No driver notes</p>
                       )}
                     </div>
                   </section>

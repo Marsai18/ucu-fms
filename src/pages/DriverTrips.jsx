@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
-import { MapPin, Calendar, Car, CheckCircle2, Route, ThumbsUp, ThumbsDown, FileText, MessageSquare, Fuel } from 'lucide-react'
+import { MapPin, Calendar, Car, CheckCircle2, Route, ThumbsUp, ThumbsDown, FileText, MessageSquare } from 'lucide-react'
 import FileUpload from '../components/FileUpload'
 import RouteMap from '../components/RouteMap'
 import TripResponseActions from '../components/TripResponseActions'
@@ -62,7 +62,7 @@ const DriverTrips = () => {
     return () => clearInterval(interval)
   }, [fetchTrips])
 
-  const needsResponse = (trip) => trip && trip.status === 'Pending' && (trip.driverResponse === 'pending' || !trip.driverResponse)
+  const needsResponse = (trip) => trip && trip.status === 'Pending'
 
   // Merge routes-as-trips with trips for display (routes first, then trips not matching any route)
   const displayItems = useMemo(() => {
@@ -74,7 +74,7 @@ const DriverTrips = () => {
       if (trip) usedTripIds.add(String(trip.id))
       const tripName = getRouteLabel(route)
       const status = trip?.status || 'Pending'
-      const needsResp = trip && trip.status === 'Pending' && (trip.driverResponse === 'pending' || !trip.driverResponse)
+      const needsResp = trip && trip.status === 'Pending'
       items.push({ route, trip, tripName, status, needsResp, isFromRoute: true })
     })
     trips.forEach(trip => {
@@ -109,7 +109,7 @@ const DriverTrips = () => {
     const status = item.status
     if (filter === 'all') return true
     if (filter === 'completed') return status === 'Completed'
-    if (filter === 'in-progress') return status === 'In Progress'
+    if (filter === 'in-progress') return status === 'In_Progress'
     if (filter === 'pending') return status === 'Pending'
     if (filter === 'cancelled') return status === 'Cancelled'
     return true
@@ -192,6 +192,7 @@ const DriverTrips = () => {
   const statusBadge = (status) => {
     const styles = {
       Completed: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400',
+      In_Progress: 'bg-ucu-blue-100 dark:bg-ucu-blue-900/30 text-ucu-blue-700 dark:text-ucu-blue-400',
       'In Progress': 'bg-ucu-blue-100 dark:bg-ucu-blue-900/30 text-ucu-blue-700 dark:text-ucu-blue-400',
       Cancelled: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
       Pending: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
@@ -199,6 +200,8 @@ const DriverTrips = () => {
     }
     return styles[status] || styles.Pending
   }
+
+  const displayStatus = (s) => s === 'In_Progress' ? 'In Progress' : s
 
   if (loading) {
     return (
@@ -312,7 +315,7 @@ const DriverTrips = () => {
                       {trip?.tripCode || `Trip #${displayId}`}
                     </span>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusBadge(status)}`}>
-                      {status}
+                      {displayStatus(status)}
                     </span>
                   </div>
                   {needsResp && trip && (
@@ -330,12 +333,6 @@ const DriverTrips = () => {
                   <p className="text-sm text-ucu-blue-600 dark:text-ucu-blue-400 mt-2 flex items-center gap-1">
                     <Route size={14} />
                     Best route: {distance ?? 0} km • ~{duration ?? 0} min
-                  </p>
-                )}
-                {(trip?.fuelEstimateLitres != null || trip?.fuelEstimateCost != null) && (
-                  <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 mt-2 flex items-center gap-1">
-                    <Fuel size={14} />
-                    Fuel: ~{trip?.fuelEstimateLitres ?? '—'} L • UGX {(trip?.fuelEstimateCost ?? 0).toLocaleString()}
                   </p>
                 )}
                 {geometry && geometry.length > 1 && (
@@ -361,19 +358,8 @@ const DriverTrips = () => {
                     )}
                   </>
                 )}
-                {trip?.assignmentFeedback && (
-                  <div className="mt-3 p-3 rounded-lg bg-ucu-blue-50 dark:bg-ucu-blue-900/20 border border-ucu-blue-200 dark:border-ucu-blue-700">
-                    <p className="text-xs font-semibold text-ucu-blue-700 dark:text-ucu-blue-400">Your feedback</p>
-                    <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">{trip?.assignmentFeedback}</p>
-                  </div>
-                )}
                 {trip?.driverNotes && (
                   <p className="text-sm text-gray-500 dark:text-gray-500 mt-2 italic">Notes: {trip?.driverNotes}</p>
-                )}
-                {trip?.vehicleIds && trip.vehicleIds.length > 1 && (
-                  <p className="text-sm text-ucu-blue-600 dark:text-ucu-blue-400 mt-2">
-                    {trip.vehicleIds.length} vehicles assigned
-                  </p>
                 )}
                 {needsResp && trip && (
                   <div className="mt-4 p-4 rounded-xl bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600" onClick={(e) => e.stopPropagation()}>
@@ -383,7 +369,7 @@ const DriverTrips = () => {
                     />
                   </div>
                 )}
-                {trip && !needsResp && (trip.driverResponse === 'accepted' || trip.status === 'In Progress') && !trip.assignmentFeedback && (
+                {trip && !needsResp && trip.status === 'In_Progress' && (
                   <button
                     onClick={(e) => { e.stopPropagation(); setFeedbackModal({ open: true, tripId: trip.id }); setAssignmentFeedback(''); }}
                     className="mt-3 px-3 py-1.5 rounded-lg bg-ucu-blue-100 dark:bg-ucu-blue-500/20 text-ucu-blue-700 dark:text-ucu-blue-400 font-semibold text-sm flex items-center gap-1"
@@ -391,19 +377,13 @@ const DriverTrips = () => {
                     <MessageSquare size={14} /> Submit Feedback
                   </button>
                 )}
-                {trip?.status === 'Completed' && !trip?.tripReport && (
+                {trip?.status === 'Completed' && (
                   <button
                     onClick={(e) => { e.stopPropagation(); setReportModal({ open: true, tripId: trip.id }); }}
                     className="mt-3 px-3 py-1.5 rounded-lg bg-ucu-blue-100 dark:bg-ucu-blue-500/20 text-ucu-blue-700 dark:text-ucu-blue-400 font-semibold text-sm flex items-center gap-1"
                   >
                     <FileText size={14} /> Submit Trip Report
                   </button>
-                )}
-                {trip?.tripReport && (
-                  <div className="mt-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600">
-                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Trip Report</p>
-                    <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">{trip?.tripReport}</p>
-                  </div>
                 )}
               </div>
               <div className="flex flex-col gap-2 text-sm">
@@ -419,10 +399,10 @@ const DriverTrips = () => {
                     ETA: {new Date(trip.scheduledArrival).toLocaleString()}
                   </p>
                 )}
-                {trip?.arrivalTime && (
+                {trip?.actualArrival && (
                   <p className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                     <CheckCircle2 size={16} />
-                    Arrived: {new Date(trip.arrivalTime).toLocaleString()}
+                    Arrived: {new Date(trip.actualArrival).toLocaleString()}
                   </p>
                 )}
                 {trip?.distanceTraveled > 0 && (

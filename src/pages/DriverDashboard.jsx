@@ -72,7 +72,7 @@ const DriverDashboard = () => {
     return () => clearInterval(interval)
   }, [fetchData])
 
-  const needsResponse = (trip) => trip.status === 'Pending' && (trip.driverResponse === 'pending' || !trip.driverResponse)
+  const needsResponse = (trip) => trip.status === 'Pending'
 
   const handleAcceptClick = (e, tripId) => {
     e.stopPropagation()
@@ -116,12 +116,12 @@ const DriverDashboard = () => {
   const fuelLogOptions = useMemo(() => {
     const opts = []
     routes.forEach((r) => {
-      const vId = r.preferredVehicle
+      const vId = r.vehicleId
       if (!vId) return
       const trip = r.tripId ? trips.find(t => String(t.id) === String(r.tripId)) : null
       const dist = r.distance ?? r.distanceKm ?? trip?.routeDistance ?? 0
       const dur = r.duration ?? r.durationMinutes ?? trip?.routeDuration ?? 0
-      const cost = trip?.fuelEstimateCost ?? 0
+      const cost = 0
       const vehicle = r.vehicle ? { ...r.vehicle, vehicleType: r.vehicle.vehicleType } : null
       opts.push({
         key: `route-${r.id}`,
@@ -260,8 +260,8 @@ const DriverDashboard = () => {
   }
 
   const completedTrips = trips.filter(t => t.status === 'Completed')
-  const tripsNeedingReport = completedTrips.filter(t => !t.tripReport)
-  const inProgressTrips = trips.filter(t => t.status === 'In Progress')
+  const tripsNeedingReport = completedTrips
+  const inProgressTrips = trips.filter(t => t.status === 'In_Progress')
   const pendingResponseTrips = trips.filter(t => needsResponse(t))
 
   const unusedGatePasses = useMemo(() => {
@@ -284,7 +284,7 @@ const DriverDashboard = () => {
         if (!trip) trip = trips.find(t => tripMatchesRoute(t, route))
         const tripName = getRouteLabel(route)
         const status = trip?.status || 'Pending'
-        const needsResp = trip && trip.status === 'Pending' && (trip.driverResponse === 'pending' || !trip.driverResponse)
+        const needsResp = trip && trip.status === 'Pending'
         return { route, trip, tripName, status, needsResp }
       })
     }
@@ -545,9 +545,9 @@ const DriverDashboard = () => {
           <MapPin size={22} className="text-ucu-blue-500" /> Trip Details from Admin
         </h2>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Full trip and route details assigned to you. Accept or reject each trip with a reason if declining.</p>
-        {(pendingResponseTrips.length > 0 || trips.filter(t => t.driverResponse === 'accepted' && (t.status === 'Pending' || t.status === 'In Progress')).length > 0) ? (
+        {(pendingResponseTrips.length > 0 || trips.filter(t => t.status === 'In_Progress').length > 0) ? (
           <div className="space-y-4">
-            {[...pendingResponseTrips, ...trips.filter(t => t.driverResponse === 'accepted' && (t.status === 'Pending' || t.status === 'In Progress'))]
+            {[...pendingResponseTrips, ...trips.filter(t => t.status === 'In_Progress')]
               .filter((t, i, arr) => arr.findIndex(x => x.id === t.id) === i)
               .map((trip) => (
               <div key={trip.id} className="p-5 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/30">
@@ -575,14 +575,6 @@ const DriverDashboard = () => {
                       {trip.scheduledArrival && (
                         <p className="flex items-center gap-1.5"><Clock size={14} /> ETA: {new Date(trip.scheduledArrival).toLocaleString()}</p>
                       )}
-                      {(trip?.fuelEstimateLitres != null || trip?.fuelEstimateCost != null) && (
-                        <p className="flex items-center gap-1.5 col-span-full mt-1">
-                          <Fuel size={14} className="text-emerald-600 dark:text-emerald-400" />
-                          <span className="font-semibold text-emerald-700 dark:text-emerald-400">
-                            Fuel: ~{trip?.fuelEstimateLitres ?? '—'} L • UGX {(trip?.fuelEstimateCost ?? 0).toLocaleString()}
-                          </span>
-                        </p>
-                      )}
                     </div>
                     {trip?.purpose && <p className="text-sm text-slate-600 dark:text-slate-400 mt-2"><strong>Purpose:</strong> {trip?.purpose}</p>}
                     {trip?.waypoints && <p className="text-sm text-slate-500 dark:text-slate-400"><strong>Via:</strong> {trip?.waypoints}</p>}
@@ -592,10 +584,10 @@ const DriverDashboard = () => {
                         <RouteMap geometry={trip.route.geometry} origin={trip.origin} destination={trip.destination} height="180px" />
                       </div>
                     )}
-                    {trip?.assignmentFeedback && (
+                    {trip?.driverNotes && (
                       <div className="mt-3 p-3 rounded-lg bg-ucu-blue-50 dark:bg-ucu-blue-900/20 border border-ucu-blue-200 dark:border-ucu-blue-700">
-                        <p className="text-xs font-semibold text-ucu-blue-700 dark:text-ucu-blue-400">Your feedback</p>
-                        <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">{trip?.assignmentFeedback}</p>
+                        <p className="text-xs font-semibold text-ucu-blue-700 dark:text-ucu-blue-400">Driver notes</p>
+                        <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">{trip?.driverNotes}</p>
                       </div>
                     )}
                     {needsResponse(trip) && (
@@ -606,7 +598,7 @@ const DriverDashboard = () => {
                         />
                       </div>
                     )}
-                    {!needsResponse(trip) && !trip?.assignmentFeedback && (
+                    {!needsResponse(trip) && (
                       <button
                         onClick={() => { setFeedbackModal({ open: true, tripId: trip.id }); setAssignmentFeedback(''); }}
                         className="mt-4 px-4 py-2 rounded-lg bg-ucu-blue-500 hover:bg-ucu-blue-600 text-white font-semibold flex items-center gap-2"
@@ -699,7 +691,7 @@ const DriverDashboard = () => {
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                       needsResp ? 'bg-amber-200 dark:bg-amber-700 text-amber-800 dark:text-amber-200' :
                       status === 'Completed' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' :
-                      status === 'In Progress' ? 'bg-ucu-blue-100 dark:bg-ucu-blue-900/30 text-ucu-blue-700 dark:text-ucu-blue-400' :
+                      (status === 'In_Progress' || status === 'In Progress') ? 'bg-ucu-blue-100 dark:bg-ucu-blue-900/30 text-ucu-blue-700 dark:text-ucu-blue-400' :
                       'bg-slate-100 dark:bg-slate-600/30 text-slate-600 dark:text-slate-400'
                     }`}>
                       {needsResp ? 'Awaiting Response' : status}

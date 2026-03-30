@@ -85,7 +85,7 @@ const ClientBookingRequest = () => {
     let list = vehicles.filter(
       (v) => {
         const status = (v.operationalStatus || '').toLowerCase()
-        return status === 'active' || status === 'available'
+        return status === 'available' || status === 'in_use' || status === 'on_trip'
       }
     )
     if (filters.minSeats) {

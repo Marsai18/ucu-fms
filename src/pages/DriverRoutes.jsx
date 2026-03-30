@@ -40,7 +40,7 @@ const DriverRoutes = () => {
     }
   }, [])
 
-  const needsResponse = (trip) => trip.status === 'Pending' && (trip.driverResponse === 'pending' || !trip.driverResponse)
+  const needsResponse = (trip) => trip.status === 'Pending'
 
   const handleAccept = async (e, tripId) => {
     e?.stopPropagation?.()
