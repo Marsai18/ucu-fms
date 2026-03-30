@@ -56,10 +56,8 @@ export const updateIncident = async (req, res, next) => {
         type: 'incident_admin_response',
         title: 'Admin Responded to Your Incident Report',
         message: `Admin has responded to your ${incident.incidentType || 'incident'} report: ${req.body.adminResponse.trim().slice(0, 100)}${req.body.adminResponse.length > 100 ? '...' : ''}`,
-        incidentId: incident.id,
         recipientRole: 'driver',
         driverId: incident.driverId,
-        adminResponse: req.body.adminResponse.trim()
       });
     }
     res.json(incident);
