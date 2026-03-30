@@ -20,10 +20,12 @@ try {
   console.warn('Could not read .env file')
 }
 
-import { PrismaClient } from '@prisma/client'
+import prismaPkg from '@prisma/client'
 import { PrismaNeon } from '@prisma/adapter-neon'
 import { neonConfig } from '@neondatabase/serverless'
 import { WebSocket } from 'ws'
+
+const { PrismaClient } = prismaPkg
 
 neonConfig.webSocketConstructor = WebSocket
 
@@ -107,6 +109,37 @@ async function main() {
       create: { ...d, status: 'Active' },
     })
     console.log(`✅ Driver: ${driver.name} (id=${driver.id})`)
+  }
+
+  // ─── Fleet vehicles (about 10, including 2 buses) ─────────────────────
+  const vehicles = [
+    { plateNumber: 'UBA 214A', make: 'Toyota', model: 'Hiace', year: 2019, color: 'White', fuelType: 'Diesel', operationalStatus: 'Available', odometerReading: 126500 },
+    { plateNumber: 'UBB 387C', make: 'Toyota', model: 'Hilux', year: 2020, color: 'Silver', fuelType: 'Diesel', operationalStatus: 'Available', odometerReading: 98420 },
+    { plateNumber: 'UBD 541F', make: 'Nissan', model: 'Navara', year: 2018, color: 'Gray', fuelType: 'Diesel', operationalStatus: 'Available', odometerReading: 143100 },
+    { plateNumber: 'UBE 906H', make: 'Isuzu', model: 'D-Max', year: 2021, color: 'White', fuelType: 'Diesel', operationalStatus: 'Available', odometerReading: 75420 },
+    { plateNumber: 'UBF 772K', make: 'Mitsubishi', model: 'Pajero', year: 2017, color: 'Black', fuelType: 'Diesel', operationalStatus: 'Available', odometerReading: 167300 },
+    { plateNumber: 'UBG 635M', make: 'Toyota', model: 'Prado', year: 2019, color: 'Navy', fuelType: 'Diesel', operationalStatus: 'Available', odometerReading: 118200 },
+    { plateNumber: 'UBH 448Q', make: 'Hyundai', model: 'H-1', year: 2018, color: 'White', fuelType: 'Diesel', operationalStatus: 'Available', odometerReading: 132700 },
+    { plateNumber: 'UBJ 159S', make: 'Suzuki', model: 'Ertiga', year: 2022, color: 'Red', fuelType: 'Petrol', operationalStatus: 'Available', odometerReading: 41200 },
+    { plateNumber: 'UBL 903X', make: 'Isuzu', model: 'NQR Bus', year: 2016, color: 'Blue', fuelType: 'Diesel', operationalStatus: 'Available', odometerReading: 224600 },
+    { plateNumber: 'UBM 284Z', make: 'Mercedes-Benz', model: 'Sprinter Bus', year: 2020, color: 'White', fuelType: 'Diesel', operationalStatus: 'Available', odometerReading: 96300 },
+  ]
+
+  for (const v of vehicles) {
+    const vehicle = await prisma.vehicle.upsert({
+      where: { plateNumber: v.plateNumber },
+      update: {
+        make: v.make,
+        model: v.model,
+        year: v.year,
+        color: v.color,
+        fuelType: v.fuelType,
+        operationalStatus: v.operationalStatus,
+        odometerReading: v.odometerReading,
+      },
+      create: v,
+    })
+    console.log(`✅ Vehicle: ${vehicle.plateNumber} (${vehicle.make} ${vehicle.model})`)
   }
 
   console.log('\n🎉 Seed complete!')

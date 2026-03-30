@@ -94,7 +94,10 @@ const ClientDashboard = () => {
   }, [loadData])
 
   const availableVehicles = useMemo(() => {
-    let list = vehicles.filter((v) => (v.operationalStatus || '').toLowerCase() === 'active')
+    let list = vehicles.filter((v) => {
+      const status = (v.operationalStatus || '').toLowerCase()
+      return status === 'active' || status === 'available'
+    })
     if (vehicleFilters.minSeats) {
       const min = Number(vehicleFilters.minSeats)
       list = list.filter((v) => (v.seats ?? 0) >= min)

@@ -180,7 +180,10 @@ const BookingRequests = () => {
   }, [suspendModal, suspendReason, loadSavedRoutes])
 
   const availableVehicles = useMemo(() => {
-    return vehicles.filter(v => (v.operationalStatus || '').toLowerCase() === 'active')
+    return vehicles.filter(v => {
+      const status = (v.operationalStatus || '').toLowerCase()
+      return status === 'active' || status === 'available'
+    })
   }, [vehicles])
 
   // Sort vehicles by capacity similarity: same or similar seats first (for a given reference capacity)

@@ -27,7 +27,10 @@ const ClientAvailableVehicles = () => {
 
   const availableVehicles = useMemo(() => {
     let list = vehicles.filter(
-      (v) => (v.operationalStatus || '').toLowerCase() === 'active'
+      (v) => {
+        const status = (v.operationalStatus || '').toLowerCase()
+        return status === 'active' || status === 'available'
+      }
     )
     if (filters.minSeats) {
       const min = Number(filters.minSeats)
