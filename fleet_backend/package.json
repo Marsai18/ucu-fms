@@ -7,10 +7,13 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "build": "prisma generate",
-    "seed": "node prisma/seed.js",
-    "db:push": "prisma db push",
-    "db:generate": "prisma generate"
+    "init-db": "node database/initDatabase.js",
+    "fix-db": "node fix-mysql-access.js",
+    "seed": "node scripts/seed-realistic-data.js",
+    "db:import": "node scripts/import-json-to-mysql.js",
+    "db:setup": "node scripts/setup-mysql.js",
+    "db:query": "node scripts/query-snapshot.mjs",
+    "api:verify": "node scripts/verify-api.mjs"
   },
   "keywords": [
     "fleet",

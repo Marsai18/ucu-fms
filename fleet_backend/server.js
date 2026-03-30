@@ -27,6 +27,7 @@ import dashboardRoutes from './src/routes/dashboard.js';
 import driverPortalRoutes from './src/routes/driver.js';
 import notificationRoutes from './src/routes/notifications.js';
 import userRoutes from './src/routes/users.js';
+import gatePassRoutes from './src/routes/gatePasses.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -102,6 +103,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/driver', driverPortalRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/gate-passes', gatePassRoutes);
 
 // Error handling
 app.use(notFoundHandler);

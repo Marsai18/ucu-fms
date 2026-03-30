@@ -9,6 +9,7 @@ import RouteMap from '../components/RouteMap'
 import TripResponseActions from '../components/TripResponseActions'
 import FileUpload from '../components/FileUpload'
 import { getTripLabel, getRouteLabel, tripMatchesRoute } from '../utils/tripUtils'
+import GatePassCard from '../components/GatePassCard'
 
 const DriverDashboard = () => {
   const { user } = useAuth()
@@ -28,6 +29,7 @@ const DriverDashboard = () => {
   const [tripReport, setTripReport] = useState('')
   const [reportFile, setReportFile] = useState(null)
   const [fuelLogs, setFuelLogs] = useState([])
+  const [gatePasses, setGatePasses] = useState([])
   const [fuelLogForm, setFuelLogForm] = useState({ selectedKey: '', tripId: '', vehicleId: '', routeId: '', quantity: '', distanceCovered: '', cost: '', notes: '' })
   const [savingFuelLog, setSavingFuelLog] = useState(false)
   const [expandedRouteId, setExpandedRouteId] = useState(null)
@@ -36,23 +38,26 @@ const DriverDashboard = () => {
   const fetchData = useCallback(async () => {
     try {
       setError(null)
-      const [profileRes, tripsRes, routesRes, logsRes] = await Promise.all([
+      const [profileRes, tripsRes, routesRes, logsRes, gatePassesRes] = await Promise.all([
         api.getDriverProfile(),
         api.getDriverTrips(),
         api.getDriverRoutes(),
-        api.getDriverFuelLogs().catch(() => [])
+        api.getDriverFuelLogs().catch(() => []),
+        api.getDriverGatePasses().catch(() => []),
       ])
       setProfile(profileRes)
       setTrips(Array.isArray(tripsRes) ? tripsRes : [])
       const routesArr = Array.isArray(routesRes) ? routesRes : (routesRes?.routes ?? routesRes?.data ?? [])
       setRoutes(routesArr)
       setFuelLogs(Array.isArray(logsRes) ? logsRes : [])
+      setGatePasses(Array.isArray(gatePassesRes) ? gatePassesRes : [])
     } catch (err) {
       setError(err.message || 'Unable to load dashboard data')
       setProfile({ name: user?.name, email: user?.email })
       setTrips([])
       setRoutes([])
       setFuelLogs([])
+      setGatePasses([])
     } finally {
       setLoading(false)
     }
@@ -259,6 +264,18 @@ const DriverDashboard = () => {
   const inProgressTrips = trips.filter(t => t.status === 'In Progress')
   const pendingResponseTrips = trips.filter(t => needsResponse(t))
 
+  const unusedGatePasses = useMemo(() => {
+    return (gatePasses || [])
+      .filter((g) => g && !g.usedAt)
+      .sort((a, b) => new Date(b.issuedAt || 0) - new Date(a.issuedAt || 0))
+  }, [gatePasses])
+
+  const usedGatePasses = useMemo(() => {
+    return (gatePasses || [])
+      .filter((g) => g && g.usedAt)
+      .sort((a, b) => new Date(b.usedAt || 0) - new Date(a.usedAt || 0))
+  }, [gatePasses])
+
   // My Trips: routes as trips (trip name = departure → destination). Fallback to trips when no routes.
   const myTripsFromRoutes = useMemo(() => {
     if (routes.length > 0) {
@@ -441,6 +458,65 @@ const DriverDashboard = () => {
         )}
       </div>
 
+      {/* Gate Pass */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border-2 border-ucu-blue-200 dark:border-ucu-blue-700 p-6 shadow-sm">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+          <Calendar size={22} className="text-ucu-blue-500" /> Gate Pass
+        </h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+          Show this QR for access control. It becomes invalid after the first scan.
+        </p>
+
+        {gatePasses.length === 0 ? (
+          <div className="text-sm text-slate-500 dark:text-slate-400 py-6 text-center border border-dashed border-slate-200 dark:border-slate-600 rounded-xl bg-slate-50/50 dark:bg-slate-700/20">
+            No gate passes received yet.
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">When admin assigns a trip, the gate pass appears here.</div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {unusedGatePasses.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4">
+                {unusedGatePasses.slice(0, 2).map((g) => (
+                  <GatePassCard key={g.token} gatePass={g} />
+                ))}
+                {unusedGatePasses.length > 2 && (
+                  <div className="text-sm text-slate-600 dark:text-slate-300">
+                    +{unusedGatePasses.length - 2} more unused gate pass(es)
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-sm text-slate-500 dark:text-slate-400 py-4">
+                No unused gate passes right now.
+              </div>
+            )}
+
+            {usedGatePasses.length > 0 && (
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 p-4">
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Previously scanned</p>
+                <div className="mt-2 space-y-2">
+                  {usedGatePasses.slice(0, 3).map((g) => (
+                    <div key={g.token} className="flex items-center justify-between gap-3 text-sm">
+                      <span className="text-slate-600 dark:text-slate-300 truncate">
+                        {g.trip?.tripCode || g.trip?.label || `Trip ${g.tripId}`}
+                      </span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                        {g.usedAt ? new Date(g.usedAt).toLocaleString() : '—'}
+                      </span>
+                    </div>
+                  ))}
+                  {usedGatePasses.length > 3 && (
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                      +{usedGatePasses.length - 3} more used gate pass(es)
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Quick Actions — always visible */}
       <div className="flex flex-wrap gap-3">
         <button
@@ -499,27 +575,27 @@ const DriverDashboard = () => {
                       {trip.scheduledArrival && (
                         <p className="flex items-center gap-1.5"><Clock size={14} /> ETA: {new Date(trip.scheduledArrival).toLocaleString()}</p>
                       )}
-                      {(trip.fuelEstimateLitres != null || trip.fuelEstimateCost != null) && (
+                      {(trip?.fuelEstimateLitres != null || trip?.fuelEstimateCost != null) && (
                         <p className="flex items-center gap-1.5 col-span-full mt-1">
                           <Fuel size={14} className="text-emerald-600 dark:text-emerald-400" />
                           <span className="font-semibold text-emerald-700 dark:text-emerald-400">
-                            Fuel: ~{trip.fuelEstimateLitres ?? '—'} L • UGX {(trip.fuelEstimateCost ?? 0).toLocaleString()}
+                            Fuel: ~{trip?.fuelEstimateLitres ?? '—'} L • UGX {(trip?.fuelEstimateCost ?? 0).toLocaleString()}
                           </span>
                         </p>
                       )}
                     </div>
-                    {trip.purpose && <p className="text-sm text-slate-600 dark:text-slate-400 mt-2"><strong>Purpose:</strong> {trip.purpose}</p>}
-                    {trip.waypoints && <p className="text-sm text-slate-500 dark:text-slate-400"><strong>Via:</strong> {trip.waypoints}</p>}
+                    {trip?.purpose && <p className="text-sm text-slate-600 dark:text-slate-400 mt-2"><strong>Purpose:</strong> {trip?.purpose}</p>}
+                    {trip?.waypoints && <p className="text-sm text-slate-500 dark:text-slate-400"><strong>Via:</strong> {trip?.waypoints}</p>}
                     {trip.route?.geometry && trip.route.geometry.length > 1 && (
                       <div className="mt-4">
                         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Route Map</p>
                         <RouteMap geometry={trip.route.geometry} origin={trip.origin} destination={trip.destination} height="180px" />
                       </div>
                     )}
-                    {trip.assignmentFeedback && (
+                    {trip?.assignmentFeedback && (
                       <div className="mt-3 p-3 rounded-lg bg-ucu-blue-50 dark:bg-ucu-blue-900/20 border border-ucu-blue-200 dark:border-ucu-blue-700">
                         <p className="text-xs font-semibold text-ucu-blue-700 dark:text-ucu-blue-400">Your feedback</p>
-                        <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">{trip.assignmentFeedback}</p>
+                        <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">{trip?.assignmentFeedback}</p>
                       </div>
                     )}
                     {needsResponse(trip) && (
@@ -530,7 +606,7 @@ const DriverDashboard = () => {
                         />
                       </div>
                     )}
-                    {!needsResponse(trip) && !trip.assignmentFeedback && (
+                    {!needsResponse(trip) && !trip?.assignmentFeedback && (
                       <button
                         onClick={() => { setFeedbackModal({ open: true, tripId: trip.id }); setAssignmentFeedback(''); }}
                         className="mt-4 px-4 py-2 rounded-lg bg-ucu-blue-500 hover:bg-ucu-blue-600 text-white font-semibold flex items-center gap-2"
@@ -643,7 +719,7 @@ const DriverDashboard = () => {
                     <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Route Map — {tripName}</p>
                     <RouteMap geometry={route.geometry} origin={route.origin} destination={route.destination} height="200px" />
                     {route.waypoints && <p className="text-xs text-slate-500 dark:text-slate-400 mt-2"><strong>Via:</strong> {route.waypoints}</p>}
-                    {trip?.purpose && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1"><strong>Purpose:</strong> {trip.purpose}</p>}
+                    {trip?.purpose && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1"><strong>Purpose:</strong> {trip?.purpose}</p>}
                     {(trip?.scheduledDeparture || trip?.departureTime) && (
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
                         <Calendar size={12} /> {new Date(trip.scheduledDeparture || trip.departureTime).toLocaleString()}

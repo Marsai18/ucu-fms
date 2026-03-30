@@ -29,6 +29,7 @@ import {
   Cell
 } from 'recharts'
 import api from '../utils/api'
+import GatePassAdminPanel from '../components/GatePassAdminPanel'
 
 const accentBar = {
   blue: 'bg-blue-500',
@@ -290,6 +291,9 @@ const Dashboard = () => {
           New booking
         </Link>
       </header>
+
+      {/* Gate Pass (Admin) */}
+      <GatePassAdminPanel />
 
       {/* Hero KPI row — benchmark circular icons */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -403,6 +403,61 @@ const db = {
     return data.notifications[index];
   },
 
+  // Gate passes (one-time QR tokens)
+  async findAllGatePasses() {
+    const data = await readData();
+    return data.gatePasses || [];
+  },
+
+  async findGatePassByToken(token) {
+    const data = await readData();
+    return (data.gatePasses || []).find(g => g.token === token) || null;
+  },
+
+  async findUnusedGatePassForTrip(tripId) {
+    const data = await readData();
+    return (data.gatePasses || []).find(
+      g => String(g.tripId) === String(tripId) && !g.usedAt
+    ) || null;
+  },
+
+  async createGatePass(gatePass) {
+    const data = await readData();
+    if (!data.gatePasses) data.gatePasses = [];
+    const token = gatePass?.token;
+    if (!token) {
+      throw new Error('gatePass.token is required');
+    }
+    if ((data.gatePasses || []).some(g => g.token === token)) {
+      // Caller should usually re-use existing unused tokens.
+      throw new Error('Gate pass token already exists');
+    }
+    const record = {
+      ...gatePass,
+      createdAt: gatePass.createdAt || new Date().toISOString(),
+      usedAt: gatePass.usedAt || null,
+      scannedAt: gatePass.scannedAt || null
+    };
+    data.gatePasses.push(record);
+    await writeData(data);
+    return record;
+  },
+
+  async scanGatePass(token, scannedAt = new Date().toISOString()) {
+    const data = await readData();
+    const list = data.gatePasses || [];
+    const index = list.findIndex(g => g.token === token);
+    if (index === -1) return null;
+    const gatePass = list[index];
+    if (!gatePass.usedAt) {
+      gatePass.usedAt = scannedAt;
+      gatePass.scannedAt = scannedAt;
+      list[index] = gatePass;
+      await writeData(data);
+    }
+    return gatePass;
+  },
+
   // Assignment drafts (admin saves route when assigning driver before approval)
   async saveAssignmentDraft(bookingId, draft) {
     const data = await readData();

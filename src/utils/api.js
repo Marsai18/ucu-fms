@@ -406,6 +406,25 @@ class API {
     });
   }
 
+  // Gate Passes (admin generate, driver fetch, public scan)
+  async createGatePass(tripId) {
+    return this.request('/gate-passes', {
+      method: 'POST',
+      body: JSON.stringify({ tripId }),
+    });
+  }
+
+  async getDriverGatePasses() {
+    return this.request('/gate-passes/driver');
+  }
+
+  async scanGatePass(token) {
+    return this.request('/gate-passes/scan', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    });
+  }
+
   // Notifications
   async getNotifications() {
     return this.request('/notifications');

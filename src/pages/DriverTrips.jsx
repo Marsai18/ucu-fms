@@ -332,10 +332,10 @@ const DriverTrips = () => {
                     Best route: {distance ?? 0} km • ~{duration ?? 0} min
                   </p>
                 )}
-                {(trip.fuelEstimateLitres != null || trip.fuelEstimateCost != null) && (
+                {(trip?.fuelEstimateLitres != null || trip?.fuelEstimateCost != null) && (
                   <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 mt-2 flex items-center gap-1">
                     <Fuel size={14} />
-                    Fuel: ~{trip.fuelEstimateLitres ?? '—'} L • UGX {(trip.fuelEstimateCost ?? 0).toLocaleString()}
+                    Fuel: ~{trip?.fuelEstimateLitres ?? '—'} L • UGX {(trip?.fuelEstimateCost ?? 0).toLocaleString()}
                   </p>
                 )}
                 {geometry && geometry.length > 1 && (
@@ -352,23 +352,25 @@ const DriverTrips = () => {
                 {(trip?.purpose || route?.waypoints) && (
                   <>
                     {trip?.purpose && (
-                      <p className="text-sm text-slate-600 dark:text-slate-400 mt-2"><strong>Purpose:</strong> {trip.purpose}</p>
+                      <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
+                        <strong>Purpose:</strong> {trip?.purpose}
+                      </p>
                     )}
                     {(route?.waypoints || trip?.waypoints) && (
                       <p className="text-sm text-slate-500 dark:text-slate-400 mt-1"><strong>Via:</strong> {route?.waypoints || trip?.waypoints}</p>
                     )}
                   </>
                 )}
-                {trip.assignmentFeedback && (
+                {trip?.assignmentFeedback && (
                   <div className="mt-3 p-3 rounded-lg bg-ucu-blue-50 dark:bg-ucu-blue-900/20 border border-ucu-blue-200 dark:border-ucu-blue-700">
                     <p className="text-xs font-semibold text-ucu-blue-700 dark:text-ucu-blue-400">Your feedback</p>
-                    <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">{trip.assignmentFeedback}</p>
+                    <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">{trip?.assignmentFeedback}</p>
                   </div>
                 )}
-                {trip.driverNotes && (
-                  <p className="text-sm text-gray-500 dark:text-gray-500 mt-2 italic">Notes: {trip.driverNotes}</p>
+                {trip?.driverNotes && (
+                  <p className="text-sm text-gray-500 dark:text-gray-500 mt-2 italic">Notes: {trip?.driverNotes}</p>
                 )}
-                {trip.vehicleIds && trip.vehicleIds.length > 1 && (
+                {trip?.vehicleIds && trip.vehicleIds.length > 1 && (
                   <p className="text-sm text-ucu-blue-600 dark:text-ucu-blue-400 mt-2">
                     {trip.vehicleIds.length} vehicles assigned
                   </p>
@@ -389,7 +391,7 @@ const DriverTrips = () => {
                     <MessageSquare size={14} /> Submit Feedback
                   </button>
                 )}
-                {trip?.status === 'Completed' && !trip.tripReport && (
+                {trip?.status === 'Completed' && !trip?.tripReport && (
                   <button
                     onClick={(e) => { e.stopPropagation(); setReportModal({ open: true, tripId: trip.id }); }}
                     className="mt-3 px-3 py-1.5 rounded-lg bg-ucu-blue-100 dark:bg-ucu-blue-500/20 text-ucu-blue-700 dark:text-ucu-blue-400 font-semibold text-sm flex items-center gap-1"
@@ -397,10 +399,10 @@ const DriverTrips = () => {
                     <FileText size={14} /> Submit Trip Report
                   </button>
                 )}
-                {trip.tripReport && (
+                {trip?.tripReport && (
                   <div className="mt-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600">
                     <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Trip Report</p>
-                    <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">{trip.tripReport}</p>
+                    <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">{trip?.tripReport}</p>
                   </div>
                 )}
               </div>

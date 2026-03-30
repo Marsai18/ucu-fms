@@ -22,16 +22,21 @@ export const AuthProvider = ({ children }) => {
           setUser(null)
         }
       } else {
+        // If there is no JWT token, do NOT treat the stored user as authenticated.
+        // Otherwise the UI may render (admin route) while API calls fail with auth errors.
         const stored = localStorage.getItem('ucu_fms_auth')
         if (stored) {
           try {
             const parsed = JSON.parse(stored)
-            setIsAuthenticated(true)
+            setIsAuthenticated(false)
             setUser(parsed)
           } catch {
             setIsAuthenticated(false)
             setUser(null)
           }
+        } else {
+          setIsAuthenticated(false)
+          setUser(null)
         }
       }
       setIsInitialized(true)

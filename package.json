@@ -8,6 +8,7 @@
     "date-fns": "^2.30.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.294.0",
+    "qrcode.react": "^4.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.6.0",
@@ -30,6 +31,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "backend": "cd fleet_backend && npm start",
+    "db:query": "cd fleet_backend && npm run db:query",
+    "api:verify": "cd fleet_backend && npm run api:verify",
     "deploy": "vercel --prod",
     "deploy:preview": "vercel"
   }

@@ -19,6 +19,7 @@ const C = {
   activityLogs: 'activity_logs',
   assignmentDrafts: 'assignment_drafts',
   trainingSessions: 'training_sessions',
+  gatePasses: 'gate_passes'
 };
 
 function parsePayload(row) {
@@ -413,6 +414,53 @@ const mysqlDb = {
     if (!cur) return null;
     const notification = { ...cur, ...updates };
     return upsert(C.notifications, String(id), notification);
+  },
+
+  // Gate passes (one-time QR tokens)
+  async findAllGatePasses() {
+    return loadAll(C.gatePasses);
+  },
+
+  async findGatePassByToken(token) {
+    const [rows] = await pool.query(
+      'SELECT doc_id, payload FROM app_documents WHERE collection = ? AND doc_id = ? LIMIT 1',
+      [C.gatePasses, String(token)]
+    );
+    return rows.length ? parsePayload(rows[0]) : null;
+  },
+
+  async findUnusedGatePassForTrip(tripId) {
+    const all = await this.findAllGatePasses();
+    return all.find(g => String(g.tripId) === String(tripId) && !g.usedAt) || null;
+  },
+
+  async createGatePass(gatePass) {
+    const token = gatePass?.token;
+    if (!token) throw new Error('gatePass.token is required');
+    // Use QR token as doc_id for O(1) lookup on scan.
+    const record = {
+      ...gatePass,
+      createdAt: gatePass.createdAt || new Date().toISOString(),
+      usedAt: gatePass.usedAt || null,
+      scannedAt: gatePass.scannedAt || null,
+    };
+    await upsert(C.gatePasses, String(token), record);
+    return record;
+  },
+
+  async scanGatePass(token, scannedAt = new Date().toISOString()) {
+    const gatePass = await this.findGatePassByToken(token);
+    if (!gatePass) return null;
+    if (!gatePass.usedAt) {
+      const updated = {
+        ...gatePass,
+        usedAt: scannedAt,
+        scannedAt,
+      };
+      await upsert(C.gatePasses, String(token), updated);
+      return updated;
+    }
+    return gatePass;
   },
 
   async saveAssignmentDraft(bookingId, draft) {

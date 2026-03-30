@@ -30,6 +30,7 @@ const ClientDashboard = lazy(() => import('./pages/ClientDashboard'))
 const ClientBookingRequest = lazy(() => import('./pages/ClientBookingRequest'))
 const ClientAvailableVehicles = lazy(() => import('./pages/ClientAvailableVehicles'))
 const ClientHistory = lazy(() => import('./pages/ClientHistory'))
+const GatePassScan = lazy(() => import('./pages/GatePassScan'))
 const DriverDashboard = lazy(() => import('./pages/DriverDashboard'))
 const DriverTrips = lazy(() => import('./pages/DriverTrips'))
 const DriverRoutes = lazy(() => import('./pages/DriverRoutes'))
@@ -168,6 +169,8 @@ function App() {
           {/* Login - unified for Admin and Driver */}
           <Route path="/login" element={<Login />} />
           <Route path="/driver/login" element={<Login />} />
+          {/* Public (no auth): gate staff scan page */}
+          <Route path="/gatepass/scan/:token" element={<GatePassScan />} />
           <Route
             path="/driver/dashboard"
             element={
