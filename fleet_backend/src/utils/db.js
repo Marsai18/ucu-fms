@@ -513,8 +513,8 @@ function _mapMaintenanceIn(data) {
     serviceProvider: 'mechanicName',
     mechanicDetails: 'mechanicDetails', mechanic_details: 'mechanicDetails',
     description: 'description', notes: 'description',
-    nextServiceDate: 'nextServiceDate', next_service_due_date: 'nextServiceDate',
-    nextServiceDueDate: 'nextServiceDate', nextServiceDue: 'nextServiceDate',
+    nextServiceDueDate: 'nextServiceDueDate', next_service_due_date: 'nextServiceDueDate',
+    nextServiceDate: 'nextServiceDueDate', nextServiceDue: 'nextServiceDueDate',
   }
   for (const [src, dest] of Object.entries(map)) {
     if (data[src] !== undefined) out[dest] = data[src]
@@ -522,7 +522,7 @@ function _mapMaintenanceIn(data) {
   if (out.vehicleId != null) out.vehicleId = Number(out.vehicleId)
   if (!out.serviceDate) out.serviceDate = new Date()
   else if (typeof out.serviceDate === 'string') out.serviceDate = new Date(out.serviceDate)
-  if (out.nextServiceDate && typeof out.nextServiceDate === 'string') out.nextServiceDate = new Date(out.nextServiceDate)
+  if (out.nextServiceDueDate && typeof out.nextServiceDueDate === 'string') out.nextServiceDueDate = new Date(out.nextServiceDueDate)
   return out
 }
 

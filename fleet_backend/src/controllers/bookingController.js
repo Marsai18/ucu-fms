@@ -36,10 +36,9 @@ export const saveAssignmentDraft = async (req, res, next) => {
     }
     const origin = 'Uganda Christian University Main Campus';
     const destination = booking.destination || 'Kampala City Centre';
-    const waypoints = booking.waypoints || '';
     let routeData = { distanceKm: 0, durationMinutes: 0, geometry: [], origin, destination };
     try {
-      const calculated = await calculateRoute(origin, destination, waypoints);
+      const calculated = await calculateRoute(origin, destination, '');
       routeData = {
         distanceKm: calculated.distanceKm,
         durationMinutes: calculated.durationMinutes,
@@ -71,7 +70,7 @@ export const getAssignmentDraft = async (req, res, next) => {
   }
 };
 
-// Route preview for a booking (admin) - calculates distance, duration, geometry from booking destination/waypoints
+// Route preview for a booking (admin)
 export const getRoutePreview = async (req, res, next) => {
   try {
     const booking = await db.findBookingById(req.params.id);
@@ -81,8 +80,7 @@ export const getRoutePreview = async (req, res, next) => {
     }
     const origin = 'Uganda Christian University Main Campus';
     const destination = booking.destination || 'Kampala City Centre';
-    const waypoints = booking.waypoints || '';
-    const calculated = await calculateRoute(origin, destination, waypoints);
+    const calculated = await calculateRoute(origin, destination, '');
     res.json({
       distanceKm: calculated.distanceKm,
       durationMinutes: calculated.durationMinutes,
@@ -153,18 +151,23 @@ export const createBookingRequest = async (req, res, next) => {
         clientName = n || (u.email && String(u.email).trim()) || (u.username && String(u.username).trim()) || null;
       }
     }
+    // Only pass schema-valid fields to createBooking
     const booking = await db.createBooking({
-      ...req.body,
       userId,
-      clientName,
+      purpose: req.body.purpose,
+      destination: req.body.destination,
+      origin: req.body.origin,
+      startDate: startDateTime,
+      endDate: endDateTime,
+      passengers: req.body.passengers || req.body.numberOfPassengers || 1,
+      additionalNotes: req.body.additionalNotes || req.body.notes,
       status: req.body.status || 'Pending'
     });
     const fromLabel = clientName ? ` from ${clientName}` : '';
     await db.createNotification({
       type: 'new_booking',
       title: 'New Booking Request',
-      message: `New vehicle booking request ${booking.request_id || booking.id}${fromLabel} submitted — awaiting HOD approval.`,
-      bookingId: booking.id,
+      message: `New vehicle booking request ${booking.requestId || booking.id}${fromLabel} submitted — awaiting HOD approval.`,
       recipientRole: 'hod'
     });
     res.status(201).json(booking);
@@ -178,7 +181,7 @@ export const updateBookingStatus = async (req, res, next) => {
   try {
     const { status, driverId, vehicleIds, hodApprovalNote, hodSignature, vehicleChangeReason, rejectionReason } = req.body;
     const userRole = req.user?.role || (req.user?.username === 'masai' ? 'admin' : null);
-    
+
     if (!['Approved', 'Rejected', 'Cancelled', 'Pending', 'HODApproved'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
@@ -208,30 +211,28 @@ export const updateBookingStatus = async (req, res, next) => {
       updates.rejectionReason = String(rejectionReason || '').trim();
     }
     if (status === 'HODApproved' && userRole === 'hod') {
-      updates.hodApprovedBy = req.user?.name || req.user?.username || 'HOD';
-      updates.hodApprovedAt = new Date().toISOString();
+      // Store HOD note in additionalNotes since schema has no hodApprovalNote field
       if (hodApprovalNote || hodSignature) {
-        updates.hodApprovalNote = hodApprovalNote || hodSignature;
+        updates.additionalNotes = `HOD Note: ${hodApprovalNote || hodSignature}`;
       }
+      updates.approvedBy = req.user?.id ? Number(req.user.id) : undefined;
+      updates.approvedAt = new Date().toISOString();
     }
     if (status === 'Approved') {
       if (userRole === 'admin' || req.user?.username === 'masai') {
-        updates.approvedByUserId = req.user?.id != null ? String(req.user.id) : undefined;
+        updates.approvedBy = req.user?.id ? Number(req.user.id) : undefined;
+        updates.approvedAt = new Date().toISOString();
       }
       if (driverId) updates.driverId = driverId;
+
       const vIds = vehicleIds && Array.isArray(vehicleIds) ? vehicleIds : (booking.vehicleId ? [booking.vehicleId] : []);
-      const clientPreferredIds = booking.vehicleIds?.length ? booking.vehicleIds : (booking.vehicleId ? [String(booking.vehicleId)] : []);
-      const adminChangedVehicle = vIds.length && clientPreferredIds.length &&
-        (vIds[0] !== clientPreferredIds[0] || !clientPreferredIds.includes(vIds[0]));
+      const existingVehicleId = booking.vehicleId;
+      const adminChangedVehicle = vIds.length && existingVehicleId && String(vIds[0]) !== String(existingVehicleId);
+
       if (adminChangedVehicle && !(vehicleChangeReason && String(vehicleChangeReason).trim())) {
         return res.status(400).json({ error: 'Reason required when changing the vehicle from the client\'s request' });
       }
-      if (adminChangedVehicle) {
-        updates.originalVehicleId = booking.vehicleId || clientPreferredIds[0];
-        updates.vehicleChangeReason = String(vehicleChangeReason || '').trim();
-      }
-      if (vIds.length) updates.vehicleIds = vIds;
-      if (vIds[0]) updates.vehicleId = vIds[0];
+      if (vIds[0]) updates.vehicleId = Number(vIds[0]);
     }
 
     const updated = await db.updateBooking(req.params.id, updates);
@@ -244,163 +245,129 @@ export const updateBookingStatus = async (req, res, next) => {
         type: 'booking_rejected',
         userId: booking.userId,
         title: 'Booking Request Rejected',
-        message: `Your booking request ${booking.request_id || booking.id} has been rejected.${reasonText}`,
-        bookingId: booking.id,
+        message: `Your booking request ${booking.requestId || booking.id} has been rejected.${reasonText}`,
         recipientRole: 'client'
       });
     }
 
-    // Notify client when HOD approves - client-only, driver must NOT see this
+    // Notify client when HOD approves
     if (status === 'HODApproved' && booking.userId) {
       await db.createNotification({
         type: 'booking_hod_approved',
         userId: booking.userId,
         title: 'HOD Approved — Awaiting Admin Assignment',
-        message: `Your booking ${booking.request_id || booking.id} has been approved by HOD. Admin will assign a driver and vehicle shortly.`,
-        bookingId: booking.id,
+        message: `Your booking ${booking.requestId || booking.id} has been approved by HOD. Admin will assign a driver and vehicle shortly.`,
         recipientRole: 'client'
       });
       await db.createNotification({
         type: 'booking_for_admin',
         title: 'New Request for Approval',
-        message: `HOD has approved booking ${booking.request_id || booking.id} - awaiting your approval and vehicle/driver assignment.`,
-        bookingId: booking.id,
+        message: `HOD has approved booking ${booking.requestId || booking.id} - awaiting your approval and vehicle/driver assignment.`,
         recipientRole: 'admin'
       });
     }
 
-    // Auto-create trip when Admin approves - support multiple vehicles per trip
+    // Auto-create trip when Admin approves
     if (status === 'Approved') {
-      const vIds = updated.vehicleIds || (updated.vehicleId ? [updated.vehicleId] : []);
+      const finalVehicleId = updates.vehicleId || updated.vehicleId;
       const driverIdFinal = updates.driverId || updated.driverId;
-      if (vIds.length && driverIdFinal) {
+      if (finalVehicleId && driverIdFinal) {
         const existingTrips = await db.findAllTrips();
         const alreadyHasTrip = existingTrips.some(
           t => String(t.bookingId) === String(updated.id) && t.status !== 'Completed' && t.status !== 'Cancelled'
         );
-        /** Set only when a new trip row is created this request (must be in outer scope for client notification below). */
         let tripCreatedThisRequest = null;
         if (!alreadyHasTrip) {
-          // Use draft if available (route from when driver was assigned)
           const draft = await db.getAssignmentDraft(updated.id);
           if (draft) await db.deleteAssignmentDraft(updated.id);
+
           tripCreatedThisRequest = await db.createTrip({
             bookingId: updated.id,
-            vehicleId: vIds[0],
-            vehicleIds: vIds,
+            vehicleId: finalVehicleId,
             driverId: driverIdFinal,
             origin: 'UCU Main Campus',
             destination: updated.destination || 'Kampala City Centre',
-            purpose: updated.purpose || null,
-            waypoints: updated.waypoints || null,
-            scheduledDeparture: updated.startDateTime,
-            scheduledArrival: updated.endDateTime,
+            scheduledDeparture: updated.startDate,
+            scheduledArrival: updated.endDate,
             status: 'Pending',
-            driverResponse: 'pending',
-            tripCode: `TR${String(Date.now()).slice(-6)}`
           });
+
           const trip = tripCreatedThisRequest;
-          let routeData = {
-            origin: 'UCU Main Campus',
-            destination: updated.destination,
-            driverId: driverIdFinal,
-            preferredVehicle: vIds[0],
-            tripId: trip.id,
-            distance: 0,
-            duration: 0,
-            status: 'Saved'
-          };
+          let distanceKm = 0;
+          let durationMinutes = 0;
+          let geometry = [];
+
           try {
             const calculated = draft?.geometry?.length
               ? { distanceKm: draft.distanceKm || 0, durationMinutes: draft.durationMinutes || 0, geometry: draft.geometry }
-              : await calculateRoute('Uganda Christian University Main Campus', updated.destination, updated.waypoints || '');
-            routeData = {
-              ...routeData,
-              distance: calculated.distanceKm,
-              duration: calculated.durationMinutes,
-              geometry: calculated.geometry,
-              waypoints: updated.waypoints || ''
-            };
-            const vehicle = await db.findVehicleById(vIds[0]);
-            const fuelEst = calcFuelEstimate({
-              distanceKm: calculated.distanceKm,
-              durationMin: calculated.durationMinutes,
-              vehicle,
-              pricePerLiter: 5500,
-              reservePercent: 10
-            });
-            await db.updateTrip(trip.id, {
-              routeDistance: calculated.distanceKm,
-              routeDuration: calculated.durationMinutes,
-              routeGeometry: calculated.geometry,
-              fuelEstimateLitres: fuelEst.litres,
-              fuelEstimateCost: fuelEst.cost
-            });
+              : await calculateRoute('Uganda Christian University Main Campus', updated.destination || 'Kampala City Centre', '');
+            distanceKm = calculated.distanceKm;
+            durationMinutes = calculated.durationMinutes;
+            geometry = calculated.geometry || [];
           } catch (routeErr) {
             console.warn('Route calculation failed, using placeholder:', routeErr.message);
-          }
-          if (!routeData.geometry || routeData.geometry.length < 2) {
-            const originCoords = [0.3569, 32.7521];
-            const destCoords = [0.3476, 32.5825];
-            routeData.geometry = Array.from({ length: 11 }, (_, i) => [
-              originCoords[0] + (destCoords[0] - originCoords[0]) * i / 10,
-              originCoords[1] + (destCoords[1] - originCoords[1]) * i / 10
+            distanceKm = 25;
+            durationMinutes = 45;
+            geometry = Array.from({ length: 11 }, (_, i) => [
+              0.3569 + (0.3476 - 0.3569) * i / 10,
+              32.7521 + (32.5825 - 32.7521) * i / 10
             ]);
-            const vehicle = await db.findVehicleById(vIds[0]);
-            const fuelEst = calcFuelEstimate({
-              distanceKm: routeData.distance || 25,
-              durationMin: routeData.duration || 45,
-              vehicle,
-              pricePerLiter: 5500,
-              reservePercent: 10
-            });
-            await db.updateTrip(trip.id, {
-              routeGeometry: routeData.geometry,
-              routeDistance: routeData.distance || 25,
-              routeDuration: routeData.duration || 45,
-              fuelEstimateLitres: fuelEst.litres,
-              fuelEstimateCost: fuelEst.cost
-            });
           }
-          await db.createRoute(routeData);
-          const tripUpdated = await db.findTripById(trip.id);
-          const fuelLitres = tripUpdated?.fuelEstimateLitres;
-          const fuelCost = tripUpdated?.fuelEstimateCost;
-          const fuelMsg = (fuelLitres != null && fuelCost != null)
-            ? ` Fuel: ~${fuelLitres} L (UGX ${fuelCost?.toLocaleString()}).`
+
+          if (!geometry || geometry.length < 2) {
+            geometry = Array.from({ length: 11 }, (_, i) => [
+              0.3569 + (0.3476 - 0.3569) * i / 10,
+              32.7521 + (32.5825 - 32.7521) * i / 10
+            ]);
+          }
+
+          // Create route using schema-valid fields only
+          await db.createRoute({
+            origin: 'UCU Main Campus',
+            destination: updated.destination,
+            vehicleId: finalVehicleId,
+            driverId: driverIdFinal,
+            estimatedDistance: distanceKm,
+            estimatedTime: durationMinutes,
+            optimizedPath: JSON.stringify(geometry),
+            status: 'Scheduled'
+          });
+
+          const vehicle = await db.findVehicleById(finalVehicleId);
+          const fuelEst = calcFuelEstimate({
+            distanceKm,
+            durationMin: durationMinutes,
+            vehicle,
+            pricePerLiter: 5500,
+            reservePercent: 10
+          });
+
+          const fuelMsg = (fuelEst.litres != null && fuelEst.cost != null)
+            ? ` Fuel: ~${fuelEst.litres} L (UGX ${Number(fuelEst.cost).toLocaleString()}).`
             : '';
+
           await db.createNotification({
             type: 'trip_assigned',
             driverId: driverIdFinal,
             title: 'New Trip Assigned',
-            message: `Trip to ${updated.destination}. ${routeData.distance} km, ~${routeData.duration} min.${fuelMsg} Vehicle & route in your dashboard.`,
-            tripId: trip.id,
-            bookingId: updated.id,
+            message: `Trip to ${updated.destination}. ${distanceKm} km, ~${durationMinutes} min.${fuelMsg} Vehicle & route in your dashboard.`,
             recipientRole: 'driver'
           });
         }
+
         if (updated.userId) {
           const driver = await db.findDriverById(driverIdFinal);
-          const vehicles = await db.findAllVehicles();
-          const vehicleList = (vIds || []).map(vid => vehicles.find(v => String(v.id) === String(vid))).filter(Boolean);
-          const driverName = driver ? (driver.name || `${driver.firstName || ''} ${driver.lastName || ''}`.trim() || driver.email) : 'Driver';
-          const driverPhone = driver?.phone || driver?.contactNumber || '—';
-          const vehiclePlates = vehicleList.map(v => v.plateNumber).filter(Boolean).join(', ') || '—';
-          const vehicleDetails = vehicleList.length ? vehicleList.map(v => `${v.plateNumber} • ${v.make} ${v.model}`).join('; ') : '—';
-          const existingTrip = existingTrips.find(t => String(t.bookingId) === String(updated.id));
+          const vehicle = await db.findVehicleById(finalVehicleId);
+          const driverName = driver ? driver.name : 'Driver';
+          const driverPhone = driver?.phone || '—';
+          const vehiclePlate = vehicle?.plateNumber || '—';
+          const existingTrip = existingTrips?.find(t => String(t.bookingId) === String(updated.id));
           await db.createNotification({
             type: 'booking_confirmed',
             userId: updated.userId,
             title: 'Driver Assigned — Booking Confirmed',
-            message: `Your booking ${updated.request_id || updated.id} has been confirmed. Driver: ${driverName}. Vehicle(s): ${vehiclePlates}. Contact driver: ${driverPhone}`,
-            bookingId: updated.id,
-            recipientRole: 'client',
-            driverName,
-            driverPhone,
-            driverEmail: driver?.email || null,
-            vehiclePlate: vehiclePlates,
-            vehicleDetails,
-            tripId: tripCreatedThisRequest?.id ?? existingTrip?.id ?? null
+            message: `Your booking ${updated.requestId || updated.id} has been confirmed. Driver: ${driverName}. Vehicle: ${vehiclePlate}. Contact driver: ${driverPhone}`,
+            recipientRole: 'client'
           });
         }
       }

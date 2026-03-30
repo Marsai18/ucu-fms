@@ -25,7 +25,7 @@ export const getTripById = async (req, res, next) => {
   }
 };
 
-// Get trip history (enriched: client, vehicle, driver, fuel logs, report)
+// Get trip history (enriched: client, vehicle, driver, fuel logs)
 export const getTripHistory = async (req, res, next) => {
   try {
     const trip = await db.findTripById(req.params.id);
@@ -77,7 +77,7 @@ export const createTrip = async (req, res, next) => {
   }
 };
 
-// Update trip (start, update odometer, complete, driver accept/decline, trip report)
+// Update trip (start, update odometer, complete, driver accept/decline, notes)
 export const updateTrip = async (req, res, next) => {
   try {
     const updates = { ...req.body };
@@ -88,34 +88,31 @@ export const updateTrip = async (req, res, next) => {
     const driverId = req.user?.driverId;
     const isDriver = driverId && String(currentTrip.driverId) === String(driverId);
 
-    if (updates.driverResponse && isDriver) {
-      if (!['accepted', 'declined'].includes(updates.driverResponse)) {
-        return res.status(400).json({ error: 'Invalid driver response' });
+    // Driver decline — stored in driverNotes, status set to Cancelled
+    if (updates.driverResponse === 'declined' && isDriver) {
+      if (!updates.declineReason || !String(updates.declineReason).trim()) {
+        return res.status(400).json({ error: 'Decline reason is required' });
       }
-      if (currentTrip.driverResponse && currentTrip.driverResponse !== 'pending') {
-        return res.status(400).json({ error: 'Trip already responded to' });
-      }
-      if (updates.driverResponse === 'declined') {
-        if (!updates.declineReason || !String(updates.declineReason).trim()) {
-          return res.status(400).json({ error: 'Decline reason is required' });
-        }
-        updates.status = 'Cancelled';
-        await db.createNotification({
-          type: 'trip_declined',
-          title: 'Driver Declined Trip',
-          message: `Driver declined trip ${currentTrip.tripCode || tripId}. Reason: ${updates.declineReason}`,
-          tripId,
-          recipientRole: 'admin',
-          driverId: currentTrip.driverId,
-          ...(await adminRecipientFromTripBooking(currentTrip))
-        });
-      }
-      if (updates.driverResponse === 'accepted' && updates.assignmentFeedback) {
+      updates.status = 'Cancelled';
+      updates.driverNotes = `Declined: ${String(updates.declineReason).trim()}`;
+      await db.createNotification({
+        type: 'trip_declined',
+        title: 'Driver Declined Trip',
+        message: `Driver declined trip ${tripId}. Reason: ${updates.declineReason}`,
+        recipientRole: 'admin',
+        driverId: currentTrip.driverId,
+        ...(await adminRecipientFromTripBooking(currentTrip))
+      });
+    }
+
+    // Driver accept — store feedback in driverNotes
+    if (updates.driverResponse === 'accepted' && isDriver) {
+      if (updates.assignmentFeedback) {
+        updates.driverNotes = String(updates.assignmentFeedback).trim();
         await db.createNotification({
           type: 'driver_assignment_feedback',
           title: 'Driver Feedback on Assignment',
-          message: `Driver feedback for trip ${currentTrip.tripCode || tripId}: ${String(updates.assignmentFeedback).slice(0, 100)}${String(updates.assignmentFeedback).length > 100 ? '...' : ''}`,
-          tripId,
+          message: `Driver feedback for trip ${tripId}: ${String(updates.assignmentFeedback).slice(0, 100)}`,
           recipientRole: 'admin',
           driverId: currentTrip.driverId,
           ...(await adminRecipientFromTripBooking(currentTrip))
@@ -123,33 +120,14 @@ export const updateTrip = async (req, res, next) => {
       }
     }
 
-    if (updates.assignmentFeedback && isDriver && !updates.driverResponse) {
-      if (!currentTrip.assignmentFeedback && (currentTrip.driverResponse === 'accepted' || currentTrip.status === 'In Progress')) {
-        await db.createNotification({
-          type: 'driver_assignment_feedback',
-          title: 'Driver Feedback on Assignment',
-          message: `Driver submitted feedback for trip ${currentTrip.tripCode || tripId}`,
-          tripId,
-          recipientRole: 'admin',
-          driverId: currentTrip.driverId,
-          ...(await adminRecipientFromTripBooking(currentTrip))
-        });
-      }
-    }
-
+    // Store trip report in driverNotes if provided
     if ((updates.tripReport || updates.tripReportFile) && isDriver && currentTrip.status === 'Completed') {
-      if (updates.tripReport) updates.tripReport = updates.tripReport;
-      if (updates.tripReportFile) {
-        updates.tripReportFile = updates.tripReportFile;
-        updates.tripReportFileName = updates.tripReportFileName || 'trip-report.pdf';
-      }
-      updates.tripReportSubmittedAt = new Date().toISOString();
-      // Notify admin when driver submits trip report
+      const reportText = updates.tripReport || `Report file: ${updates.tripReportFileName || 'trip-report.pdf'}`;
+      updates.driverNotes = `Report: ${reportText}`;
       await db.createNotification({
         type: 'trip_report_submitted',
         title: 'Trip Report Submitted',
-        message: `Driver submitted trip report for ${currentTrip.tripCode || 'trip'} ${currentTrip.id}`,
-        tripId: currentTrip.id,
+        message: `Driver submitted trip report for trip ${currentTrip.id}`,
         recipientRole: 'admin',
         ...(await adminRecipientFromTripBooking(currentTrip))
       });
@@ -159,9 +137,24 @@ export const updateTrip = async (req, res, next) => {
       updates.distanceTraveled = updates.endOdometer - currentTrip.startOdometer;
     }
 
-    if (updates.status === 'In Progress' && !updates.departureTime) {
-      updates.departureTime = new Date().toISOString();
+    // When starting trip, set actualDeparture
+    if (updates.status === 'In Progress' || updates.status === 'In_Progress') {
+      if (!updates.actualDeparture && !updates.departureTime) {
+        updates.actualDeparture = new Date().toISOString();
+      }
+      updates.status = 'In_Progress';
     }
+
+    // Strip non-schema fields before update
+    delete updates.driverResponse;
+    delete updates.declineReason;
+    delete updates.assignmentFeedback;
+    delete updates.tripReport;
+    delete updates.tripReportFile;
+    delete updates.tripReportFileName;
+    delete updates.tripReportSubmittedAt;
+    delete updates.vehicleIds;
+    delete updates.tripCode;
 
     const trip = await db.updateTrip(tripId, updates);
     if (!trip) return res.status(404).json({ error: 'Trip not found' });

@@ -44,7 +44,7 @@ const distanceForTrip = (trip) => {
 };
 
 const tripTime = (trip) => {
-  const raw = trip?.departureTime || trip?.createdAt;
+  const raw = trip?.actualDeparture || trip?.scheduledDeparture || trip?.createdAt;
   if (!raw) return null;
   const dt = new Date(raw);
   return Number.isNaN(dt.getTime()) ? null : dt;
@@ -186,7 +186,7 @@ export const getDashboardStats = async (req, res, next) => {
 
       mileageData = monthsWindow.map((bucket) => {
         const monthTrips = trips.filter((trip) => {
-          const date = trip.departureTime || trip.createdAt;
+          const date = trip.actualDeparture || trip.scheduledDeparture || trip.createdAt;
           if (!date) return false;
           const tripDate = new Date(date);
           return tripDate.getMonth() === bucket.month && tripDate.getFullYear() === bucket.year;
@@ -252,9 +252,9 @@ export const getDashboardStats = async (req, res, next) => {
 
     const stats = {
       totalVehicles: vehicles.length,
-      activeVehicles: vehicles.filter((v) => (v.operationalStatus || '').toLowerCase().includes('active')).length,
+      activeVehicles: vehicles.filter((v) => v.operationalStatus === 'Available' || v.operationalStatus === 'In_Use' || v.operationalStatus === 'On_Trip').length,
       totalDrivers: drivers.length,
-      activeTrips: trips.filter((trip) => trip.status === 'In Progress').length,
+      activeTrips: trips.filter((trip) => trip.status === 'In_Progress').length,
       pendingBookings: pendingBookingsCount,
       totalFuelCost,
       maintenanceCost: totalMaintenanceCost
@@ -262,9 +262,9 @@ export const getDashboardStats = async (req, res, next) => {
 
     const vehicleStats = {
       total: vehicles.length,
-      active: vehicles.filter((v) => (v.operationalStatus || '').toLowerCase().includes('active')).length,
-      maintenance: vehicles.filter((v) => (v.operationalStatus || '').toLowerCase().includes('maintenance')).length,
-      inactive: vehicles.filter((v) => (v.operationalStatus || '').toLowerCase().includes('inactive')).length
+      active: vehicles.filter((v) => v.operationalStatus === 'Available' || v.operationalStatus === 'In_Use' || v.operationalStatus === 'On_Trip').length,
+      maintenance: vehicles.filter((v) => v.operationalStatus === 'Maintenance').length,
+      inactive: vehicles.filter((v) => v.operationalStatus === 'Retired').length
     };
 
     const driverStats = {

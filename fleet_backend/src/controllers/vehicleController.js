@@ -23,13 +23,12 @@ export const getVehicleById = async (req, res, next) => {
   }
 };
 
-// Create vehicle acquisition
+// Create vehicle acquisition (status defaults to Available until assigned)
 export const createVehicleAcquisition = async (req, res, next) => {
   try {
     const vehicle = await db.createVehicle({
       ...req.body,
-      budgetApproved: req.body.budgetApproved || 'pending',
-      status: 'acquisition'
+      operationalStatus: req.body.operationalStatus || 'Available'
     });
     res.status(201).json(vehicle);
   } catch (error) {

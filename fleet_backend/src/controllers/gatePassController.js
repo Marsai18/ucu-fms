@@ -21,35 +21,28 @@ const resolveDriverForTrip = async (trip) => {
   if (!driver) return null;
   return {
     id: String(driver.id),
-    name: driver.name || `${driver.firstName || ''} ${driver.lastName || ''}`.trim() || null,
+    name: driver.name || null,
     email: driver.email || null,
-    phone: driver.phone || driver.contactNumber || null,
+    phone: driver.phone || null,
   };
 };
 
 const resolveRouteForTrip = (trip, route) => {
-  if (!route && trip) {
-    return {
-      distanceKm: trip.routeDistance ?? null,
-      durationMin: trip.routeDuration ?? null,
-      origin: trip.origin ?? null,
-      destination: trip.destination ?? null,
-      waypoints: trip.waypoints ?? null,
-      geometry: trip.routeGeometry ?? null,
-    };
+  // Parse geometry from route's optimizedPath (stored as JSON string)
+  let geometry = null;
+  if (route?.optimizedPath) {
+    try { geometry = JSON.parse(route.optimizedPath); } catch { geometry = null; }
   }
-
   return {
-    distanceKm: route?.distance ?? route?.distanceKm ?? trip?.routeDistance ?? null,
-    durationMin: route?.duration ?? route?.durationMinutes ?? trip?.routeDuration ?? null,
+    distanceKm: route?.estimatedDistance ? Number(route.estimatedDistance) : null,
+    durationMin: route?.estimatedTime ? Number(route.estimatedTime) : null,
     origin: route?.origin ?? trip?.origin ?? null,
     destination: route?.destination ?? trip?.destination ?? null,
-    waypoints: route?.waypoints ?? trip?.waypoints ?? null,
-    geometry: route?.geometry ?? trip?.routeGeometry ?? null,
+    geometry,
   };
 };
 
-const resolveTripLabel = (trip) => trip?.tripCode || `TR-${trip?.id || ''}`.trim();
+const resolveTripLabel = (trip) => `TR-${trip?.id || ''}`.trim();
 
 /**
  * Admin: create (or re-use unused) gate pass for a given trip.
@@ -75,14 +68,17 @@ export const createGatePass = async (req, res, next) => {
       db.findAllRoutes(),
     ]);
 
-    const route = (routes || []).find((r) => String(r.tripId) === String(trip.id)) || null;
+    // Find matching route by origin/destination since Route has no tripId field
+    const tripOrigin = (trip.origin || '').replace(/Uganda Christian University Main Campus/i, 'UCU Main Campus');
+    const tripDest = (trip.destination || '').trim();
+    const route = (routes || []).find((r) => {
+      const rOrigin = (r.origin || '').replace(/Uganda Christian University Main Campus/i, 'UCU Main Campus');
+      return rOrigin === tripOrigin && (r.destination || '').trim() === tripDest &&
+        (!r.vehicleId || String(r.vehicleId) === String(trip.vehicleId));
+    }) || null;
     const client = await resolveClientForBooking(booking);
 
-    const passengers =
-      booking?.numberOfPassengers ??
-      booking?.passengers ??
-      booking?.passengerCount ??
-      null;
+    const passengers = booking?.passengers ?? null;
 
     const token = generateToken();
 
@@ -96,7 +92,6 @@ export const createGatePass = async (req, res, next) => {
       passengers: passengers != null ? Number(passengers) : null,
       trip: {
         id: String(trip.id),
-        tripCode: trip.tripCode || null,
         label: resolveTripLabel(trip),
         origin: trip.origin || route?.origin || null,
         destination: trip.destination || route?.destination || null,
