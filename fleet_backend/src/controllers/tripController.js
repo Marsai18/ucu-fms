@@ -1,4 +1,5 @@
 import db from '../utils/db.js';
+import prisma from '../config/database.js';
 import { adminRecipientFromTripBooking } from '../utils/notificationTargets.js';
 
 // Get all trips
@@ -31,30 +32,35 @@ export const getTripHistory = async (req, res, next) => {
     if (!trip) {
       return res.status(404).json({ error: 'Trip not found' });
     }
-    let rawData;
-    try {
-      rawData = await db.getLegacyDataset();
-    } catch {
-      rawData = { users: [], vehicles: [], drivers: [], bookings: [], fuelLogs: [] };
+    const [vehicle, driver, fuelLogs] = await Promise.all([
+      trip.vehicleId ? prisma.vehicle.findUnique({ where: { id: Number(trip.vehicleId) } }) : null,
+      trip.driverId ? prisma.driver.findUnique({ where: { id: Number(trip.driverId) } }) : null,
+      prisma.fuelLog.findMany({
+        where: {
+          OR: [
+            { tripId: Number(trip.id) },
+            { vehicleId: Number(trip.vehicleId), trip: { driverId: Number(trip.driverId) } },
+          ],
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    let client = null;
+    if (trip.bookingId) {
+      const booking = await prisma.booking.findUnique({
+        where: { id: Number(trip.bookingId) },
+        include: { user: { select: { id: true, name: true, email: true, username: true } } },
+      });
+      client = booking?.user || null;
     }
-    const users = rawData.users || [];
-    const vehicles = rawData.vehicles || [];
-    const drivers = rawData.drivers || [];
-    const bookings = rawData.bookings || [];
-    const fuelLogs = (rawData.fuelLogs || []).filter(l =>
-      (l.tripId && String(l.tripId) === String(trip.id)) ||
-      (l.driverId && String(l.driverId) === String(trip.driverId) && l.vehicleId && String(l.vehicleId) === String(trip.vehicleId))
-    );
-    const booking = trip.bookingId ? bookings.find(b => String(b.id) === String(trip.bookingId)) : bookings.find(b => String(b.driverId) === String(trip.driverId) && (b.destination || '').trim() === (trip.destination || '').trim());
-    const client = booking?.userId ? users.find(u => String(u.id) === String(booking.userId)) : null;
-    const vehicle = vehicles.find(v => String(v.id) === String(trip.vehicleId));
-    const driver = drivers.find(d => String(d.id) === String(trip.driverId));
+
     res.json({
       ...trip,
-      client: client ? { id: client.id, name: client.name, email: client.email, username: client.username } : null,
+      client,
       vehicle: vehicle ? { id: vehicle.id, plateNumber: vehicle.plateNumber, make: vehicle.make, model: vehicle.model } : null,
       driver: driver ? { id: driver.id, name: driver.name, email: driver.email } : null,
-      fuelLogs: fuelLogs.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+      fuelLogs,
     });
   } catch (error) {
     next(error);

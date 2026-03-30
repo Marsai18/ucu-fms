@@ -40,3 +40,5 @@ lerna-debug.log*
 
 # Local credential inventory (keep out of remote)
 SYSTEM_USERS.md
+# claude
+.claude

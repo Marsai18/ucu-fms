@@ -1,0 +1,414 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  admin
+  client
+  driver
+  hod
+  fleet_manager
+}
+
+enum UserStatus {
+  active
+  inactive
+  suspended
+}
+
+enum FuelType {
+  Petrol
+  Diesel
+  Electric
+  Hybrid
+}
+
+enum VehicleStatus {
+  Available
+  In_Use     @map("In Use")
+  Maintenance
+  Retired
+  On_Trip    @map("On Trip")
+}
+
+enum BookingStatus {
+  Pending
+  Approved
+  Rejected
+  Cancelled
+  Completed
+}
+
+enum TripStatus {
+  Pending
+  In_Progress @map("In Progress")
+  Completed
+  Cancelled
+}
+
+enum RouteStatus {
+  Scheduled
+  In_Progress @map("In Progress")
+  Completed
+  Cancelled
+}
+
+enum IncidentType {
+  Accident
+  Breakdown
+  Theft
+  Vandalism
+  Minor_Damage @map("Minor Damage")
+  Other
+}
+
+enum Severity {
+  Low
+  Medium
+  High
+  Critical
+}
+
+enum IncidentStatus {
+  Reported
+  Under_Investigation @map("Under Investigation")
+  Repair_Scheduled    @map("Repair Scheduled")
+  Resolved
+  Closed
+}
+
+enum DriverStatus {
+  Active
+  Inactive
+  Suspended
+  On_Leave @map("On Leave")
+}
+
+enum RegulationType {
+  Roadworthiness_Certificate @map("Roadworthiness Certificate")
+  Insurance
+  Driver_License             @map("Driver License")
+  Vehicle_Registration       @map("Vehicle Registration")
+  Other
+}
+
+enum ComplianceStatus {
+  Compliant
+  Non_Compliant   @map("Non-Compliant")
+  Expiring_Soon   @map("Expiring Soon")
+}
+
+enum TrainingStatus {
+  Scheduled
+  Completed
+  Cancelled
+}
+
+model User {
+  id        Int        @id @default(autoincrement())
+  username  String     @unique
+  email     String     @unique
+  password  String
+  name      String
+  role      UserRole   @default(client)
+  phone     String?
+  status    UserStatus @default(active)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  bookings         Booking[]      @relation("UserBookings")
+  approvedBookings Booking[]      @relation("ApprovedBookings")
+  incidents        Incident[]
+  activityLogs     ActivityLog[]
+  notifications    Notification[]
+
+  @@map("users")
+}
+
+model Vehicle {
+  id                   Int           @id @default(autoincrement())
+  plateNumber          String        @unique @map("plate_number")
+  make                 String
+  model                String
+  year                 Int?
+  color                String?
+  chassisNumber        String?       @map("chassis_number")
+  engineNumber         String?       @map("engine_number")
+  fuelType             FuelType      @default(Diesel) @map("fuel_type")
+  fuelCapacity         Decimal?      @map("fuel_capacity") @db.Decimal(10, 2)
+  odometerReading      Decimal       @default(0) @map("odometer_reading") @db.Decimal(10, 2)
+  operationalStatus    VehicleStatus @default(Available) @map("operational_status")
+  purchaseDate         DateTime?     @map("purchase_date") @db.Date
+  purchaseCost         Decimal?      @map("purchase_cost") @db.Decimal(15, 2)
+  supplier             String?
+  lastServiceDate      DateTime?     @map("last_service_date") @db.Date
+  nextServiceDueDate   DateTime?     @map("next_service_due_date") @db.Date
+  registrationExpiry   DateTime?     @map("registration_expiry_date") @db.Date
+  insuranceExpiry      DateTime?     @map("insurance_expiry_date") @db.Date
+  createdAt            DateTime      @default(now()) @map("created_at")
+  updatedAt            DateTime      @updatedAt @map("updated_at")
+
+  bookings           Booking[]
+  trips              Trip[]
+  fuelLogs           FuelLog[]
+  maintenanceRecords MaintenanceRecord[]
+  routes             Route[]
+  incidents          Incident[]
+  complianceRecords  ComplianceRecord[]
+  activityLogs       ActivityLog[]
+
+  @@map("vehicles")
+}
+
+model Driver {
+  id                    Int          @id @default(autoincrement())
+  name                  String
+  licenseNumber         String       @unique @map("license_number")
+  licenseExpiryDate     DateTime?    @map("license_expiry_date") @db.Date
+  phone                 String
+  email                 String?
+  address               String?
+  emergencyContactName  String?      @map("emergency_contact_name")
+  emergencyContactPhone String?      @map("emergency_contact_phone")
+  status                DriverStatus @default(Active)
+  hireDate              DateTime?    @map("hire_date") @db.Date
+  performanceRating     Decimal      @default(0) @map("performance_rating") @db.Decimal(3, 2)
+  createdAt             DateTime     @default(now()) @map("created_at")
+  updatedAt             DateTime     @updatedAt @map("updated_at")
+
+  bookings          Booking[]
+  trips             Trip[]
+  routes            Route[]
+  incidents         Incident[]
+  complianceRecords ComplianceRecord[]
+  trainingRecords   DriverTraining[]
+  activityLogs      ActivityLog[]
+
+  @@map("drivers")
+}
+
+model Booking {
+  id               Int           @id @default(autoincrement())
+  requestId        String        @unique @map("request_id")
+  userId           Int           @map("user_id")
+  vehicleId        Int?          @map("vehicle_id")
+  driverId         Int?          @map("driver_id")
+  purpose          String
+  destination      String
+  origin           String        @default("Uganda Christian University Main Campus")
+  startDate        DateTime      @map("start_date")
+  endDate          DateTime      @map("end_date")
+  passengers       Int           @default(1)
+  additionalNotes  String?       @map("additional_notes")
+  status           BookingStatus @default(Pending)
+  approvedBy       Int?          @map("approved_by")
+  approvedAt       DateTime?     @map("approved_at")
+  rejectionReason  String?       @map("rejection_reason")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  user     User     @relation("UserBookings", fields: [userId], references: [id], onDelete: Cascade)
+  vehicle  Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  driver   Driver?  @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  approver User?    @relation("ApprovedBookings", fields: [approvedBy], references: [id], onDelete: SetNull)
+  trips    Trip[]
+  activityLogs ActivityLog[]
+
+  @@map("bookings")
+}
+
+model Trip {
+  id                 Int        @id @default(autoincrement())
+  bookingId          Int?       @map("booking_id")
+  vehicleId          Int        @map("vehicle_id")
+  driverId           Int        @map("driver_id")
+  origin             String
+  destination        String
+  scheduledDeparture DateTime?  @map("scheduled_departure")
+  scheduledArrival   DateTime?  @map("scheduled_arrival")
+  actualDeparture    DateTime?  @map("actual_departure")
+  actualArrival      DateTime?  @map("actual_arrival")
+  startOdometer      Decimal?   @map("start_odometer") @db.Decimal(10, 2)
+  endOdometer        Decimal?   @map("end_odometer") @db.Decimal(10, 2)
+  distanceTraveled   Decimal?   @map("distance_traveled") @db.Decimal(10, 2)
+  status             TripStatus @default(Pending)
+  driverNotes        String?    @map("driver_notes")
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+
+  booking  Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  vehicle  Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  driver   Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  fuelLogs FuelLog[]
+
+  @@map("trips")
+}
+
+model FuelLog {
+  id             Int      @id @default(autoincrement())
+  vehicleId      Int      @map("vehicle_id")
+  tripId         Int?     @map("trip_id")
+  fuelType       FuelType @map("fuel_type")
+  quantity       Decimal  @db.Decimal(10, 2)
+  cost           Decimal  @db.Decimal(15, 2)
+  odometerReading Decimal @map("odometer_reading") @db.Decimal(10, 2)
+  fuelStation    String?  @map("fuel_station")
+  receiptNumber  String?  @map("receipt_number")
+  refuelDate     DateTime @map("refuel_date") @db.Date
+  efficiency     Decimal? @db.Decimal(5, 2)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  trip    Trip?   @relation(fields: [tripId], references: [id], onDelete: SetNull)
+
+  @@map("fuel_logs")
+}
+
+model MaintenanceRecord {
+  id               Int      @id @default(autoincrement())
+  vehicleId        Int      @map("vehicle_id")
+  serviceType      String   @map("service_type")
+  serviceDate      DateTime @map("service_date") @db.Date
+  odometerReading  Decimal? @map("odometer_reading") @db.Decimal(10, 2)
+  cost             Decimal? @db.Decimal(15, 2)
+  mechanicName     String?  @map("mechanic_name")
+  mechanicDetails  String?  @map("mechanic_details")
+  description      String?
+  nextServiceDate  DateTime? @map("next_service_due_date") @db.Date
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@map("maintenance_records")
+}
+
+model Route {
+  id                Int         @id @default(autoincrement())
+  name              String?
+  origin            String
+  destination       String
+  vehicleId         Int?        @map("vehicle_id")
+  driverId          Int?        @map("driver_id")
+  estimatedDistance Decimal?    @map("estimated_distance") @db.Decimal(10, 2)
+  estimatedTime     String?     @map("estimated_time")
+  optimizedPath     String?     @map("optimized_path")
+  status            RouteStatus @default(Scheduled)
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  vehicle Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  driver  Driver?  @relation(fields: [driverId], references: [id], onDelete: SetNull)
+
+  @@map("routes")
+}
+
+model Incident {
+  id                  Int            @id @default(autoincrement())
+  incidentType        IncidentType   @map("incident_type")
+  vehicleId           Int?           @map("vehicle_id")
+  driverId            Int?           @map("driver_id")
+  reportedBy          Int            @map("reported_by")
+  incidentDate        DateTime       @map("incident_date") @db.Date
+  location            String
+  description         String?
+  severity            Severity       @default(Low)
+  status              IncidentStatus @default(Reported)
+  damageDescription   String?        @map("damage_description")
+  estimatedRepairCost Decimal?       @map("estimated_repair_cost") @db.Decimal(15, 2)
+  resolutionNotes     String?        @map("resolution_notes")
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+
+  vehicle    Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  driver     Driver?  @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  reportedByUser User @relation(fields: [reportedBy], references: [id], onDelete: Cascade)
+
+  @@map("incidents")
+}
+
+model ComplianceRecord {
+  id               Int              @id @default(autoincrement())
+  vehicleId        Int?             @map("vehicle_id")
+  driverId         Int?             @map("driver_id")
+  regulationType   RegulationType   @map("regulation_type")
+  inspectionDate   DateTime         @map("inspection_date") @db.Date
+  expiryDate       DateTime?        @map("expiry_date") @db.Date
+  inspectorName    String?          @map("inspector_name")
+  complianceStatus ComplianceStatus @default(Compliant) @map("compliance_status")
+  findings         String?
+  nextInspection   DateTime?        @map("next_inspection_date") @db.Date
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  vehicle Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  driver  Driver?  @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@map("compliance_records")
+}
+
+model DriverTraining {
+  id                Int            @id @default(autoincrement())
+  driverId          Int            @map("driver_id")
+  trainingType      String         @map("training_type")
+  trainingDate      DateTime       @map("training_date") @db.Date
+  trainerName       String?        @map("trainer_name")
+  location          String?
+  durationHours     Decimal?       @map("duration_hours") @db.Decimal(5, 2)
+  status            TrainingStatus @default(Scheduled)
+  certificateNumber String?        @map("certificate_number")
+  notes             String?
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+
+  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@map("driver_training")
+}
+
+model ActivityLog {
+  id           Int      @id @default(autoincrement())
+  userId       Int?     @map("user_id")
+  vehicleId    Int?     @map("vehicle_id")
+  driverId     Int?     @map("driver_id")
+  bookingId    Int?     @map("booking_id")
+  activityType String   @map("activity_type")
+  description  String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  vehicle Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  driver  Driver?  @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  booking Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@map("activity_logs")
+}
+
+model Notification {
+  id              Int      @id @default(autoincrement())
+  userId          Int?     @map("user_id")
+  driverId        Int?     @map("driver_id")
+  recipientRole   String?  @map("recipient_role")
+  recipientUserId Int?     @map("recipient_user_id")
+  title           String?
+  message         String?
+  type            String?
+  read            Boolean  @default(false)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("notifications")
+}
+
+model AssignmentDraft {
+  bookingId   Int      @id @map("booking_id")
+  data        Json
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("assignment_drafts")
+}

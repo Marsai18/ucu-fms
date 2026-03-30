@@ -7,11 +7,10 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "init-db": "node database/initDatabase.js",
-    "fix-db": "node fix-mysql-access.js",
-    "seed": "node scripts/seed-realistic-data.js",
-    "db:import": "node scripts/import-json-to-mysql.js",
-    "db:setup": "node scripts/setup-mysql.js"
+    "build": "prisma generate",
+    "seed": "node prisma/seed.js",
+    "db:push": "prisma db push",
+    "db:generate": "prisma generate"
   },
   "keywords": [
     "fleet",
@@ -21,6 +20,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
+    "@prisma/adapter-neon": "^7.6.0",
+    "@prisma/client": "^7.6.0",
     "bcrypt": "^5.1.1",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
@@ -28,6 +30,8 @@
     "express": "^4.18.2",
     "express-validator": "^7.0.1",
     "jsonwebtoken": "^9.0.2",
-    "mysql2": "^3.6.5"
+    "prisma": "^7.6.0",
+    "tsx": "^4.21.0",
+    "ws": "^8.20.0"
   }
 }

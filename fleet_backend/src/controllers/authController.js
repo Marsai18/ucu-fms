@@ -1,181 +1,87 @@
-import pool, { readData } from '../config/database.js';
-import bcrypt from 'bcrypt';
-import { generateToken } from '../utils/jwt.js';
+import prisma from '../config/database.js'
+import bcrypt from 'bcrypt'
+import { generateToken } from '../utils/jwt.js'
 
 export const login = async (req, res, next) => {
   try {
-    const { username, password } = req.body;
+    const { username, password } = req.body
 
     if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password are required' });
+      return res.status(400).json({ error: 'Username and password are required' })
     }
 
-    let user;
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [{ username }, { email: username }],
+      },
+    })
 
-    // Use MySQL if available, otherwise use JSON
-    if (pool && typeof pool.query === 'function') {
-      const [users] = await pool.query(
-        'SELECT * FROM users WHERE username = ? OR email = ?',
-        [username, username]
-      );
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' })
+    }
 
-      if (users.length === 0) {
-        return res.status(401).json({ error: 'Invalid credentials' });
-      }
+    const st = (user.status || 'active').toLowerCase()
+    if (st === 'suspended' || st === 'inactive') {
+      return res.status(403).json({
+        error: 'This account is suspended or access has been revoked. Contact an administrator.',
+      })
+    }
 
-      user = users[0];
-      if (user.driver_id != null && user.driverId == null) {
-        user.driverId = String(user.driver_id);
-      }
-
-      const st = (user.status || 'active').toLowerCase();
-      if (st === 'suspended' || st === 'inactive') {
-        return res.status(403).json({
-          error: 'This account is suspended or access has been revoked. Contact an administrator.',
-        });
-      }
-
-      // Plain text (current default) or legacy bcrypt hash
-      let passwordMatch = false;
-      if (user.password && String(user.password).startsWith('$2')) {
-        passwordMatch = await bcrypt.compare(password, user.password);
-      } else {
-        passwordMatch = user.password === password;
-      }
-      if (!passwordMatch) {
-        return res.status(401).json({ error: 'Invalid credentials' });
-      }
+    let passwordMatch = false
+    if (user.password && String(user.password).startsWith('$2')) {
+      passwordMatch = await bcrypt.compare(password, user.password)
     } else {
-      // Fallback to JSON storage
-      const data = await readData();
-      user = data.users.find(u => u.username === username || u.email === username);
-
-      if (!user) {
-        return res.status(401).json({ error: 'Invalid credentials' });
-      }
-
-      const st = (user.status || 'active').toLowerCase();
-      if (st === 'suspended' || st === 'inactive') {
-        return res.status(403).json({
-          error: 'This account is suspended or access has been revoked. Contact an administrator.',
-        });
-      }
-
-      let passwordMatch = false;
-      if (user.password && String(user.password).startsWith('$2')) {
-        passwordMatch = await bcrypt.compare(password, user.password);
-      } else {
-        passwordMatch = user.password === password;
-      }
-      if (!passwordMatch) {
-        return res.status(401).json({ error: 'Invalid credentials' });
-      }
+      passwordMatch = user.password === password
     }
 
-    const tokenPayload = {
-      id: user.id,
-      username: user.username,
-      role: user.role || 'client'
-    };
-    if (user.role === 'driver' && user.driverId) {
-      tokenPayload.driverId = user.driverId;
-    }
-    const token = generateToken(tokenPayload);
-
-    let userWithoutPassword;
-    if (pool && typeof pool.query === 'function') {
-      userWithoutPassword = {
-        id: String(user.id),
-        username: user.username,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        phone: user.phone ?? null,
-        status: user.status,
-        createdAt: user.created_at,
-        updatedAt: user.updated_at,
-        ...(user.driver_id != null ? { driverId: String(user.driver_id) } : {}),
-      };
-    } else {
-      const { password: _p, ...rest } = user;
-      userWithoutPassword = rest;
+    if (!passwordMatch) {
+      return res.status(401).json({ error: 'Invalid credentials' })
     }
 
-    res.json({
-      ok: true,
-      token,
-      user: userWithoutPassword
-    });
+    const tokenPayload = { id: user.id, username: user.username, role: user.role }
+    const token = generateToken(tokenPayload)
+
+    const { password: _, ...userWithoutPassword } = user
+    res.json({ ok: true, token, user: userWithoutPassword })
   } catch (error) {
-    next(error);
+    next(error)
   }
-};
+}
 
-// Demo token for fallback login when main API fails (e.g. CORS during dev)
+// Demo token fallback (kept for dev convenience)
 export const getDemoToken = async (req, res, next) => {
   try {
-    const { username, password } = req.body || {};
+    const { username, password } = req.body || {}
     const demoUsers = [
-      { username: 'masai', email: 'masai.absalom@ucu.ac.ug', password: 'masai123', id: '1', role: 'admin', name: 'Masai' },
-      { username: 'client@ucu.ac.ug', password: 'client123', id: '2', role: 'client', name: 'Client User' },
-      { username: 'david.ssebunya@ucu.ac.ug', password: 'driver123', id: '3', role: 'driver', driverId: '1', name: 'David Ssebunya' },
-      { username: 'hod@ucu.ac.ug', password: 'hod123', id: '7', role: 'hod', name: 'Head of Department' },
-      { username: 'hod', password: 'hod123', id: '7', role: 'hod', name: 'Head of Department' }
-    ];
-    const match = demoUsers.find(u =>
-      (u.username === username || (u.email && u.email === username)) && u.password === password
-    );
-    if (!match) {
-      return res.status(401).json({ error: 'Invalid demo credentials' });
-    }
-    const tokenPayload = { id: match.id, username: match.username, role: match.role };
-    if (match.driverId) tokenPayload.driverId = match.driverId;
-    const token = generateToken(tokenPayload);
-    res.json({ token, user: { id: match.id, username: match.username, role: match.role, driverId: match.driverId, name: match.name } });
+      { username: 'masai', email: 'masai.absalom@ucu.ac.ug', password: 'masai123', id: 1, role: 'admin', name: 'Masai' },
+      { username: 'client@ucu.ac.ug', password: 'client123', id: 2, role: 'client', name: 'Client User' },
+      { username: 'david.ssebunya@ucu.ac.ug', password: 'driver123', id: 3, role: 'driver', driverId: 1, name: 'David Ssebunya' },
+      { username: 'hod@ucu.ac.ug', password: 'hod123', id: 7, role: 'hod', name: 'Head of Department' },
+      { username: 'hod', password: 'hod123', id: 7, role: 'hod', name: 'Head of Department' },
+    ]
+    const match = demoUsers.find(
+      (u) => (u.username === username || u.email === username) && u.password === password
+    )
+    if (!match) return res.status(401).json({ error: 'Invalid demo credentials' })
+    const tokenPayload = { id: match.id, username: match.username, role: match.role }
+    if (match.driverId) tokenPayload.driverId = match.driverId
+    const token = generateToken(tokenPayload)
+    res.json({ token, user: { id: match.id, username: match.username, role: match.role, driverId: match.driverId, name: match.name } })
   } catch (error) {
-    next(error);
+    next(error)
   }
-};
+}
 
 export const getCurrentUser = async (req, res, next) => {
   try {
-    let user;
+    const user = await prisma.user.findUnique({
+      where: { id: Number(req.user.id) },
+      select: { id: true, username: true, email: true, name: true, role: true, status: true, createdAt: true, updatedAt: true },
+    })
 
-    if (pool && typeof pool.query === 'function') {
-      const [users] = await pool.query(
-        'SELECT id, username, email, name, role, phone, status, driver_id, created_at, updated_at FROM users WHERE id = ?',
-        [req.user.id]
-      );
-
-      if (users.length === 0) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-
-      const row = users[0];
-      user = {
-        id: String(row.id),
-        username: row.username,
-        email: row.email,
-        name: row.name,
-        role: row.role,
-        phone: row.phone ?? null,
-        status: row.status,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-        ...(row.driver_id != null ? { driverId: String(row.driver_id) } : {}),
-      };
-    } else {
-      const data = await readData();
-      user = data.users.find(u => u.id === String(req.user.id));
-
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-    }
-
-    const { password: _, ...userWithoutPassword } = user;
-    res.json(userWithoutPassword);
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    res.json(user)
   } catch (error) {
-    next(error);
+    next(error)
   }
-};
+}

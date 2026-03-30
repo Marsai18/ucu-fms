@@ -1,4 +1,5 @@
 import db from '../utils/db.js';
+import prisma from '../config/database.js';
 
 // Admin CRUD for drivers
 
@@ -58,7 +59,7 @@ export const deleteDriver = async (req, res, next) => {
 
 export const getTrainingSessions = async (req, res, next) => {
   try {
-    const sessions = await db.getTrainingSessions();
+    const sessions = await prisma.driverTraining.findMany({ orderBy: { trainingDate: 'desc' } });
     res.json(sessions);
   } catch (error) {
     next(error);
@@ -67,8 +68,21 @@ export const getTrainingSessions = async (req, res, next) => {
 
 export const createTrainingSession = async (req, res, next) => {
   try {
-    const newSession = await db.createTrainingSession(req.body);
-    res.status(201).json(newSession);
+    const { driverId, trainingType, trainingDate, trainerName, location, durationHours, status, certificateNumber, notes } = req.body;
+    const session = await prisma.driverTraining.create({
+      data: {
+        driverId: Number(driverId),
+        trainingType,
+        trainingDate: trainingDate ? new Date(trainingDate) : new Date(),
+        trainerName: trainerName || null,
+        location: location || null,
+        durationHours: durationHours ? Number(durationHours) : null,
+        status: status || 'Scheduled',
+        certificateNumber: certificateNumber || null,
+        notes: notes || null,
+      },
+    });
+    res.status(201).json(session);
   } catch (error) {
     next(error);
   }
