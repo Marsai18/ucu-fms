@@ -28,13 +28,13 @@ export async function checkAndCreateMaintenanceNotifications() {
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
 
     for (const record of records) {
-      if (!record.nextServiceDueDate) continue;
-      const daysUntil = getDaysUntilDue(record.nextServiceDueDate);
+      if (!record.nextServiceDate) continue;
+      const daysUntil = getDaysUntilDue(record.nextServiceDate);
       if (daysUntil === null) continue;
 
       const vehicle = vehicles.find(v => String(v.id) === String(record.vehicleId));
       const vehicleLabel = vehicle ? `${vehicle.plateNumber} (${vehicle.make} ${vehicle.model})` : `Vehicle ${record.vehicleId}`;
-      const dueDateStr = new Date(record.nextServiceDueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      const dueDateStr = new Date(record.nextServiceDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
       // Check if recently notified for this record (match by record id in message)
       const recentlyNotified = alertNotifs.some(
@@ -79,8 +79,8 @@ export const getMaintenanceAlerts = async (req, res, next) => {
     const overdue = [];
 
     for (const record of records) {
-      if (!record.nextServiceDueDate) continue;
-      const daysUntil = getDaysUntilDue(record.nextServiceDueDate);
+      if (!record.nextServiceDate) continue;
+      const daysUntil = getDaysUntilDue(record.nextServiceDate);
       if (daysUntil === null) continue;
 
       const vehicle = vehicles.find(v => String(v.id) === String(record.vehicleId));
@@ -88,7 +88,7 @@ export const getMaintenanceAlerts = async (req, res, next) => {
         ...record,
         vehicle: vehicle ? { plateNumber: vehicle.plateNumber, make: vehicle.make, model: vehicle.model } : null,
         daysUntil,
-        dueDateFormatted: new Date(record.nextServiceDueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+        dueDateFormatted: new Date(record.nextServiceDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
       };
 
       if (daysUntil < 0) overdue.push(item);
@@ -125,12 +125,12 @@ export const createMaintenanceRecord = async (req, res, next) => {
       vehicleId: req.body.vehicleId,
       description: `Maintenance: ${req.body.serviceType || 'Service'}`
     });
-    if (record.nextServiceDueDate) {
-      const daysUntil = getDaysUntilDue(record.nextServiceDueDate);
+    if (record.nextServiceDate) {
+      const daysUntil = getDaysUntilDue(record.nextServiceDate);
       const vehicles = await db.findAllVehicles();
       const vehicle = vehicles.find(v => String(v.id) === String(record.vehicleId));
       const vehicleLabel = vehicle ? `${vehicle.plateNumber} (${vehicle.make} ${vehicle.model})` : `Vehicle ${record.vehicleId}`;
-      const dueDateStr = new Date(record.nextServiceDueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      const dueDateStr = new Date(record.nextServiceDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
       if (daysUntil !== null && daysUntil <= REMINDER_DAYS) {
         await db.createNotification({
           type: 'maintenance_alert',
