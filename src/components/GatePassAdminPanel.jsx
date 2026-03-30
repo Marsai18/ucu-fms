@@ -12,12 +12,10 @@ const GatePassAdminPanel = () => {
   const [generating, setGenerating] = useState(false)
 
   const eligibleTrips = useMemo(() => {
-    return (trips || []).filter(
-      (t) =>
-        (t.status || '').toLowerCase() === 'in progress' &&
-        t.driverId != null &&
-        t.driverId !== ''
-    )
+    return (trips || []).filter((t) => {
+      const s = (t.status || '').toLowerCase().replace('_', ' ')
+      return (s === 'pending' || s === 'in progress') && t.driverId != null && t.driverId !== ''
+    })
   }, [trips])
 
   const fetchTrips = useCallback(async () => {

@@ -39,10 +39,19 @@ export const login = async (req, res, next) => {
     }
 
     const tokenPayload = { id: user.id, username: user.username, role: user.role }
-    const token = generateToken(tokenPayload)
 
+    // For driver users, look up their Driver record and attach driverId to JWT
+    if (user.role === 'driver') {
+      const driverRecord = await prisma.driver.findFirst({
+        where: { email: user.email },
+        select: { id: true },
+      })
+      if (driverRecord) tokenPayload.driverId = driverRecord.id
+    }
+
+    const token = generateToken(tokenPayload)
     const { password: _, ...userWithoutPassword } = user
-    res.json({ ok: true, token, user: userWithoutPassword })
+    res.json({ ok: true, token, user: { ...userWithoutPassword, driverId: tokenPayload.driverId || null } })
   } catch (error) {
     next(error)
   }
