@@ -42,6 +42,10 @@ const db = {
     return prisma.driver.findUnique({ where: { id: Number(id) } })
   },
 
+  async findDriverByEmail(email) {
+    return prisma.driver.findFirst({ where: { email } })
+  },
+
   async createDriver(driverData) {
     const { createdAt, updatedAt, id, ...data } = driverData
     return prisma.driver.create({ data: _mapDriverIn(data) })

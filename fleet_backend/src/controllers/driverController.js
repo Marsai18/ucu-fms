@@ -1,12 +1,15 @@
 import db from '../utils/db.js';
 import { adminRecipientFromTripBooking } from '../utils/notificationTargets.js';
 
-/** Resolve driverId from JWT or by looking up user */
+/** Resolve driverId from JWT or by looking up Driver record via user email */
 async function resolveDriverId(req) {
   let driverId = req.user?.driverId;
   if (!driverId && req.user?.id) {
     const user = await db.findUser({ id: req.user.id });
-    if (user?.role === 'driver' && user?.driverId) driverId = user.driverId;
+    if (user?.role === 'driver' && user?.email) {
+      const driver = await db.findDriverByEmail(user.email);
+      if (driver) driverId = driver.id;
+    }
   }
   return driverId;
 }
