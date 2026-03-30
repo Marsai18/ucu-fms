@@ -37,6 +37,7 @@ enum VehicleStatus {
 
 enum BookingStatus {
   Pending
+  HODApproved
   Approved
   Rejected
   Cancelled
